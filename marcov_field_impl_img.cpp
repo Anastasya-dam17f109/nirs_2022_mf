@@ -23,10 +23,15 @@ int main() {
 	//		std::cout << '(' << point.x << ',' << point.y << ')' << '\n';
 	//	std::cout << '\n';
 	//}
-	mix_img_obj *img = new mix_img_obj(32, NORMAL, 1, 2);
-	shared_ptr<mix_img_obj> ptr_img (img);
+	initial_prob_img *img = new initial_prob_img(32, NORMAL, 1, 2);
+	/*shared_ptr<initial_prob_img> ptr_img (img);
 
 	quad_tree_handler bbbb = quad_tree_handler(ptr_img);
+	bbbb.bottom_up_pass();
+	bbbb.up_down_pass();
+	bbbb.split_image();
+	bbbb.create_splitted_img();
+	bbbb.draw_graphics();*/
 	//mix_img_obj("C:\\Users\\anastasya\\Desktop\\data_test.txt");
 	return 0;
 }

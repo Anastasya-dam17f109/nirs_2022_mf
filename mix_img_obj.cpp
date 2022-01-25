@@ -9,10 +9,12 @@ boost::random::mt19937 generator_{ static_cast<std::uint32_t>(time(0)) };
 mix_img_obj::mix_img_obj(int img_size, mix_type mix_t, int amount_targets, int classes) {
 	image_len_x = img_size * amount_targets;
 	image_len_y = img_size * amount_targets;
+	alloc_layer_mmr();
 	mixture_type = mix_t;
 	amount_trg = amount_targets;
 	class_amount = classes;
     img_generator();
+	img_accumulation();
 	print_results();
 }
 
@@ -67,6 +69,7 @@ mix_img_obj::mix_img_obj(string file_name) {
 	load_params.close();
 	
 	load_from_bitmap();
+	img_accumulation();
 	print_results();
 }
 
@@ -92,15 +95,11 @@ void mix_img_obj::load_from_bitmap() {
 	i /= 2;
 	image_len_x = i;
 	image_len_y = i;
-
-	mixture_image = shared_ptr<shared_ptr<double[]>[]>(new shared_ptr<double[]> [image_len_x]);
-	for (i = 0; i < image_len_x; i++) 
-		mixture_image[i] = shared_ptr<double[]>(new double[image_len_y]);     
+	alloc_layer_mmr();
 	
 	for (i = 0; i < image_len_x; i++) 
 		for (j = 0; j < image_len_y; j++) 
-			mixture_image[image_len_x - i - 1][j] = double(GetGValue(image.GetPixel(j, i)));
-
+			layer_mx_img[layer_amount-1][image_len_x - i - 1][j] = double(GetGValue(image.GetPixel(j, i)));
 
 	image.Detach();
 	for (k = 0; k < class_amount; ++k) {
@@ -188,19 +187,18 @@ void mix_img_obj::img_generator() {
 		re_mix_shift[i] = 0.0;
 		re_mix_scale[i] = 0.0;
 	}
-	
+
 	targs = shared_ptr<target[]>(new target[amount_trg*amount_trg]);
 	targ_size = new unsigned[amount_trg];
 	targ_bright = new double[amount_trg];
 
-	mixture_image = shared_ptr<shared_ptr<double[]>[]>(new shared_ptr<double[]>[image_len_x]);
+	
 	for (i = 0; i < image_len_x; i++) {
-		mixture_image[i] = shared_ptr<double[]>(new double[image_len_y]);
 		for (j = 0; j < image_len_x; j++)
-			mixture_image[i][j] = dist_gen_bcg();
+			layer_mx_img[layer_amount - 1][i][j] = dist_gen_bcg();
 	}
 
-	sred = mean(mixture_image);
+	sred = mean(layer_mx_img[layer_amount - 1]);
 	bright_step = (255 - sred - 40) / class_amount;
 	amount_brigh_trg = amount_trg / class_amount;
 	if (amount_brigh_trg == 0)
@@ -214,7 +212,21 @@ void mix_img_obj::img_generator() {
 	re_mix_scale[0] = 37.0;
 	re_mix_shift[1] = targ_bright[0];
 	re_mix_scale[1] = 1.5;
-
+	if (mixture_type == NORMAL) {
+		re_mix_shift[0] = 128.0;
+		re_mix_scale[0] = 87.0;
+		//re_mix_shift[1] = re_targ_shift;
+		re_mix_scale[1] = 80.0;
+	}
+	else {
+		if (mixture_type == RAYLEIGH) {
+			re_mix_shift[0] = 0;
+			re_mix_scale[0] = 20;
+			re_mix_shift[1] = 0;
+			//re_targ_shift = 40.0;
+			re_mix_scale[1] = 40.0;
+		}
+	}
 	for (i = 0; i < amount_trg; i++) {
 		if (mixture_type == NORMAL) {
 			if (i > 0 && targ_bright[i] != targ_bright[i - 1]) {
@@ -225,7 +237,10 @@ void mix_img_obj::img_generator() {
 		}
 		for (j = 0; j < amount_trg; j++) {
 			t_coord_x = i * backg_size + backg_size / 2 - 1 - targ_size[j] / 2;
+
 			t_coord_y = j * backg_size + backg_size / 2 - 1 - targ_size[j] / 2;
+			t_coord_x = 0;
+			t_coord_y = 0;
 			if (mixture_type == NORMAL)
 				targs[i*amount_trg + j].brightness = targ_bright[i];
 			else
@@ -236,7 +251,7 @@ void mix_img_obj::img_generator() {
 
 			for (k = 0; k < targ_size[j]; k++) {
 				for (l = 0; l < targ_size[j]; l++) {
-					mixture_image[t_coord_x + k][t_coord_y + l] = dist_gen_trg(i);
+					layer_mx_img[layer_amount - 1][t_coord_x + k][t_coord_y + l] = dist_gen_trg(i);
 					//cout << mixture_image[t_coord_x + k][t_coord_y + l] << endl;
 				}
 			}
@@ -258,6 +273,41 @@ void mix_img_obj::img_generator() {
 	delete[] targ_bright;
 }
 
+// выделение памяти под многоуровневое изображение
+
+void  mix_img_obj::alloc_layer_mmr(){
+	int i = 2;
+	while (i < image_len_x) {
+		i *= 2;
+		layer_amount++;
+	}
+
+	layer_size = shared_ptr <int[]>(new int[layer_amount]);
+	layer_mx_img = shared_ptr<shared_ptr<shared_ptr<double[]>[]>[]>(new shared_ptr<shared_ptr<double[]>[]>[layer_amount]);
+
+	for (int i = 0; i < layer_amount; ++i) {
+		layer_size[i] = pow(2, i + 1);
+		layer_mx_img[i] = shared_ptr<shared_ptr<double[]>[]>(new shared_ptr<double[]>[layer_size[i]]);
+		for (int j = 0; j < layer_size[i]; j++)
+			layer_mx_img[i][j] = shared_ptr<double[]>(new double[layer_size[i]]);
+	}
+}
+
+// 
+
+void  mix_img_obj::img_accumulation() {
+	for (int i = layer_amount - 2; i > -1; i--) {
+		for (int k = 0; k < layer_size[i]; ++k) {
+			for (int l = 0; l < layer_size[i]; ++l) {
+				layer_mx_img[i][k][l] = (layer_mx_img[i+1][2*k][2*l] + layer_mx_img[i + 1][2 * k + 1][2 * l]
+					+ layer_mx_img[i + 1][2 * k][2 * l + 1]+ layer_mx_img[i + 1][2 * k + 1][2 * l + 1]) / 4.0;
+				
+			}
+
+		}
+	}
+}
+
 //вывод сведений об изображении
 
 void  mix_img_obj::print_results() {
@@ -265,7 +315,7 @@ void  mix_img_obj::print_results() {
 	out.open(filename_gen_image);
 	for (i = 0; i < image_len_x; i++) {
 		for (j = 0; j < image_len_y; j++)
-			out << mixture_image[i][j] << " ";
+			out << layer_mx_img[layer_amount -1][i][j] << " ";
 		out << std::endl;
 	}
 	out.close();

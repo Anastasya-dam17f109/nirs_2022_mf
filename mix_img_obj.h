@@ -38,7 +38,11 @@ enum mix_type {
 
 class mix_img_obj
 {
-	shared_ptr<shared_ptr<double[]>[]> mixture_image;
+	shared_ptr<shared_ptr<shared_ptr<double[]>[]>[]> layer_mx_img;
+	shared_ptr <int[]>          layer_size;
+	int layer_amount = 1;
+	
+
 	shared_ptr<double[]> re_mix_shift ;
 	shared_ptr<double[]> re_mix_scale ;
 
@@ -59,7 +63,7 @@ class mix_img_obj
 	unsigned image_len_y = 32;
 	unsigned class_amount = 1;
 	unsigned amount_trg = 1;
-	unsigned min_targ_size = 5;
+	unsigned min_targ_size = 16;
 	unsigned backg_size = 32;
 
 
@@ -69,7 +73,9 @@ public:
 	mix_img_obj(string file_name);
 	
 	void     img_generator();
-	void	load_from_bitmap();
+	void     alloc_layer_mmr();
+	void     img_accumulation();
+	void	 load_from_bitmap();
 	void     print_results();
 	int      mean(shared_ptr<shared_ptr<double[]>[]>);
 
@@ -85,7 +91,7 @@ public:
 	std::pair<int, int>   get_image_len() {return std::pair<int, int>(image_len_x, image_len_y); }
 	shared_ptr<double[]>  get_shift()     {return re_mix_shift;}
 	shared_ptr<double[]>  get_scale()     {return re_mix_scale;}
-	shared_ptr<shared_ptr<double[]>[]> get_image() { return mixture_image; }
+	shared_ptr<shared_ptr<shared_ptr<double[]>[]>[]> get_image() { return layer_mx_img; }
 
 	~mix_img_obj() {};
 };
