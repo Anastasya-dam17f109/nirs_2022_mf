@@ -239,8 +239,7 @@ void mix_img_obj::img_generator() {
 			t_coord_x = i * backg_size + backg_size / 2 - 1 - targ_size[j] / 2;
 
 			t_coord_y = j * backg_size + backg_size / 2 - 1 - targ_size[j] / 2;
-			t_coord_x = 0;
-			t_coord_y = 0;
+
 			if (mixture_type == NORMAL)
 				targs[i*amount_trg + j].brightness = targ_bright[i];
 			else
@@ -250,10 +249,8 @@ void mix_img_obj::img_generator() {
 			targs[i*amount_trg + j].y = t_coord_y;
 
 			for (k = 0; k < targ_size[j]; k++) {
-				for (l = 0; l < targ_size[j]; l++) {
+				for (l = 0; l < targ_size[j]; l++) 
 					layer_mx_img[layer_amount - 1][t_coord_x + k][t_coord_y + l] = dist_gen_trg(i);
-					//cout << mixture_image[t_coord_x + k][t_coord_y + l] << endl;
-				}
 			}
 		}
 	}
@@ -293,19 +290,15 @@ void  mix_img_obj::alloc_layer_mmr(){
 	}
 }
 
-// 
+// заполнение промежуточных слоев квадродерева
+// изображения меньшего разрешения получены методом накопления
 
 void  mix_img_obj::img_accumulation() {
-	for (int i = layer_amount - 2; i > -1; i--) {
-		for (int k = 0; k < layer_size[i]; ++k) {
-			for (int l = 0; l < layer_size[i]; ++l) {
+	for (int i = layer_amount - 2; i > -1; i--) 
+		for (int k = 0; k < layer_size[i]; ++k) 
+			for (int l = 0; l < layer_size[i]; ++l) 
 				layer_mx_img[i][k][l] = (layer_mx_img[i+1][2*k][2*l] + layer_mx_img[i + 1][2 * k + 1][2 * l]
 					+ layer_mx_img[i + 1][2 * k][2 * l + 1]+ layer_mx_img[i + 1][2 * k + 1][2 * l + 1]) / 4.0;
-				
-			}
-
-		}
-	}
 }
 
 //вывод сведений об изображении

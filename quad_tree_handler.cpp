@@ -91,7 +91,7 @@ void quad_tree_handler::build_quad_tree(shared_ptr<Node> elem, int n_layer) {
 					= pair<int, int>(elem->l_corner.first * 2 + i, elem->l_corner.second * 2 + j);
 				for (int k = 0; k < class_amount; ++k) {
 					elem->m_children[j + 2 * i]->p_xs_ys[k]
-						= m_image->get_image()[elem->m_children[j + 2 * i]->l_corner.first][elem->m_children[j + 2 * i]->l_corner.second][k];
+						= m_image->get_image()[n_layer][elem->m_children[j + 2 * i]->l_corner.first][elem->m_children[j + 2 * i]->l_corner.second][k];
 					elem->m_children[j + 2 * i]->p_xs_ds[k]
 						= elem->m_children[j + 2 * i]->p_xs_ys[k];
 				}
@@ -125,6 +125,11 @@ void quad_tree_handler::build_quad_tree(shared_ptr<Node> elem, int n_layer) {
 				layer[n_layer][elem->l_corner.first*2 + i][elem->l_corner.second*2 + j] = elem->m_children[j + 2 * i];
 				elem->m_children[j + 2 * i]->l_corner
 					= pair<int, int>(elem->l_corner.first* 2 + i, elem->l_corner.second* 2 + j);
+				for (int k = 0; k < class_amount; ++k) {
+					elem->m_children[j + 2 * i]->p_xs_ys[k]
+						= m_image->get_image()[n_layer][elem->m_children[j + 2 * i]->l_corner.first][elem->m_children[j + 2 * i]->l_corner.second][k];
+					
+				}
 			}
 		}
 		for (int i = 0; i < 4; ++i)
@@ -157,160 +162,155 @@ void quad_tree_handler::p_xs_layer_generator() {
 }
 
 // проход снизу вверх по квадродереву
+// реализуем формулы из zerubia
+// необходимое условие дя работы - нормировка вероятностей
 
 void quad_tree_handler::bottom_up_pass() {
+	long double prod_buf, sum_buf;
+	double summ;
 	for (int i = layer_amount - 1; i > -1; i--) {
+		// обработка листового слоя : p_xs_ds=p_xs_ys
+		//  p_xs_ys уже заданы в initial_prob_img, они тут не вычисляются
 		if (i == (layer_amount - 1)) {
-			for (int j = 0; j < layer_size[i]; j++) {
+			for (int j = 0; j < layer_size[i]; j++) 
 				for (int k = 0; k < layer_size[i]; k++)
-					for (int l = 0; l < class_amount; l++) {
-						layer[i][j][k]->p_xs_ys[l] *= p_xs_layer[i][l];
+					for (int l = 0; l < class_amount; l++) 
 						layer[i][j][k]->p_xs_ds[l] = layer[i][j][k]->p_xs_ys[l] ;
-						//cout << layer[i][j][k]->p_xs_ys[l] << endl;
-					}
-			}
-
 		}
 		else {
-			// вычисление p_xs_ys
+			// вычисление p_xs_ds на узлах-сучках
+			
 			for (int j = 0; j < layer_size[i]; j++) {
 				for (int k = 0; k < layer_size[i]; k++) {
-					double summ = 0;
+					summ = 0;
 					for (int l = 0; l < class_amount; l++) {
-						layer[i][j][k]->p_xs_ys[l] = 1;
-						for (int t = 0; t < 4; ++t)
-							layer[i][j][k]->p_xs_ys[l] *= layer[i][j][k]->m_children[t]->p_xs_ys[l] ;
-						summ += layer[i][j][k]->p_xs_ys[l];
-					}
-					//for (int l = 0; l < class_amount; l++) {
-						//layer[i][j][k]->p_xs_ys[l] /= summ;
-						//cout << i << "  " << layer[i][j][k]->p_xs_ys[l] << endl;
-					//}
-				}
-			}
-
-			// вычисление p_xs_ds
-			for (int j = 0; j < layer_size[i]; j++) {
-				for (int k = 0; k < layer_size[i]; k++) {
-					double summ = 0;
-					for (int l = 0; l < class_amount; l++) {
-						long double prod_buf = 1;
-						long double sum_buf = 0;
+						prod_buf = 1;
+						sum_buf = 0;
 						for (int t = 0; t < 4; ++t) {
 							sum_buf = 0;
-							for (int r = 0; r < class_amount; r++) {
-								if (i == 0) {
-									cout << p_xs_xs1[r][l] << endl;
-									cout << layer[i][j][k]->m_children[t]->p_xs_ds[r] << endl;
-									cout << p_xs_layer[i][r] << endl;
-								}
+							for (int r = 0; r < class_amount; r++) 
 								sum_buf += p_xs_xs1[r][l] * layer[i][j][k]->m_children[t]->p_xs_ds[r] / p_xs_layer[i][r];
-							}
 							prod_buf *= sum_buf;
 						}
 						layer[i][j][k]->p_xs_ds[l] = layer[i][j][k]->p_xs_ys[l] * prod_buf;
 						summ += layer[i][j][k]->p_xs_ds[l];
-						cout << i << "  " << layer[i][j][k]->p_xs_ds[l] << endl;
 					}
-					/*for (int l = 0; l < class_amount; l++)
-						layer[i][j][k]->p_xs_ds[l] /= summ;*/
+					for (int l = 0; l < class_amount; l++)
+						layer[i][j][k]->p_xs_ds[l] /= summ;
 				}
 			}
 		}
-	
-	// вычисление p_xs_ds_cs
-			for (int j = 0; j < layer_size[i]; j++) {
-				for (int k = 0; k < layer_size[i]; k++) {
-					double summ = 0;
-					for (int l = 0; l < class_amount; l++) {
-						for (int t = 0; t < class_amount; t++) {
-							for (int r = 0; r < class_amount; r++) {
-								if (i != 0)
-									layer[i][j][k]->p_xs_cs_ds[l][t][r] = layer[i][j][k]->p_xs_ds[l] * p_xs_xs1[l][t]
+		// p_xs_ds вычислены целиком все
+		// вычисление p_xs_ds_cs
+		// начинаем с самого начала - с листьев
+		for (int j = 0; j < layer_size[i]; j++) {
+			for (int k = 0; k < layer_size[i]; k++) {
+				double summ = 0;
+				for (int l = 0; l < class_amount; l++) {
+					for (int t = 0; t < class_amount; t++) {
+						for (int r = 0; r < class_amount; r++) {
+							if (i != 0)
+								layer[i][j][k]->p_xs_cs_ds[l][t][r] = layer[i][j][k]->p_xs_ds[l] * p_xs_xs1[l][t]
 									* p_xs_xs1[l][r] * p_xs_layer[i][r] * p_xs_layer[i-1][t] / (p_xs_layer[i][l] * p_xs_layer[i][l]);
-								else
-									layer[i][j][k]->p_xs_cs_ds[l][t][r] = layer[i][j][k]->p_xs_ds[l] 
+							else
+								layer[i][j][k]->p_xs_cs_ds[l][t][r] = layer[i][j][k]->p_xs_ds[l] 
 									* p_xs_xs1[l][r] * p_xs_layer[i][r] / (p_xs_layer[i][l]* p_xs_layer[i][l]);
-								summ += layer[i][j][k]->p_xs_cs_ds[l][t][r];
-							}
+							summ += layer[i][j][k]->p_xs_cs_ds[l][t][r];
 						}
-
 					}
-					/*for (int l = 0; l < class_amount; l++)
-						for (int t = 0; t < class_amount; t++)
-							for (int r = 0; r < class_amount; r++)
-								layer[i][j][k]->p_xs_cs_ds[l][t][r] /= summ;*/
 				}
+				for (int l = 0; l < class_amount; l++)
+					for (int t = 0; t < class_amount; t++)
+						for (int r = 0; r < class_amount; r++)
+							layer[i][j][k]->p_xs_cs_ds[l][t][r] /= summ;
 			}
-
-
-
-		
+		}
 	}
 }
 
 // проход сверху-вних по квадродереву
+// реализуются формулы из zerubia 
+// дополнение - все вероятности надо нормировать! иначе переполнение типа
+// на самом слое вводится отношение порядка в виде марковской цепи
+// тут  реализована только лишь одна гильбертова кривая
+// также бльшой вопрос по начальную точку на нулевом слое - как задать инициирующую вероятность
 
 void quad_tree_handler::up_down_pass() {
 	Point buf, buf1;
+	double sum;
 	for (int i = 0; i < layer_amount; i++ ){
+		// обработка начального слоя - отличие в том, что у этих пикселей нет родителей
 		if (i == 0) {
 			for (int j = 0; j < layer_size[i] * layer_size[i]; j++) {
 				buf = layer_order[i].get_points()[j];
-				
+				sum = 0;
 				if (j == 0) {
 
 					for (int k = 0; k < class_amount; ++k) {
 						for (int t = 0; t < class_amount; ++t)
 						layer[i][buf.x][buf.y]->p_xs_Y[k] += layer[i][buf.x][buf.y]->p_xs_cs_ds[k][0][t];
-						cout << layer[i][buf.x][buf.y]->p_xs_Y[k] << endl;
+				
+						sum += layer[i][buf.x][buf.y]->p_xs_Y[k];
 					}
+					for (int k = 0; k < class_amount; ++k) 
+						 layer[i][buf.x][buf.y]->p_xs_Y[k] /= sum;
 				}
 				else {
 					buf1 = layer_order[i].get_points()[j - 1];
+					sum = 0;
 					for (int k = 0; k < class_amount; ++k) {
 						for (int t = 0; t < class_amount; ++t)
 							layer[i][buf.x][buf.y]->p_xs_Y[k] += layer[i][buf.x][buf.y]->p_xs_cs_ds[k][0][t] * layer[i][buf1.x][buf1.y]->p_xs_Y[t];
-						cout << layer[i][buf.x][buf.y]->p_xs_Y[k] << endl;
+						sum += layer[i][buf.x][buf.y]->p_xs_Y[k];
+						
 					}
+					for (int k = 0; k < class_amount; ++k)
+						layer[i][buf.x][buf.y]->p_xs_Y[k] /= sum;
 				}
 			}
 		}
+		// обработка промежуточных слоев -  у этих пикселей родители есть, поэтому идет  отличие в формулах
 		else {
 			for (int j = 0; j < layer_size[i] * layer_size[i]; j++) {
 				buf = layer_order[i].get_points()[j];
-				
+				sum = 0;
 				if (j == 0) {
 
 					for (int k = 0; k < class_amount; ++k) {
 						for (int t = 0; t < class_amount; ++t)
 							layer[i][buf.x][buf.y]->p_xs_Y[k] += layer[i][buf.x][buf.y]->p_xs_cs_ds[k][t][0] * layer[i][buf.x][buf.y]->parent->p_xs_Y[t];
-						cout << layer[i][buf.x][buf.y]->p_xs_Y[k] << endl;
+						sum += layer[i][buf.x][buf.y]->p_xs_Y[k];
 					}
+					for (int k = 0; k < class_amount; ++k)
+						layer[i][buf.x][buf.y]->p_xs_Y[k] /= sum;
 				}
 				else {
 					buf1 = layer_order[i].get_points()[j - 1];
+					sum = 0;
 					for (int k = 0; k < class_amount; ++k) {
 						for (int t = 0; t < class_amount; ++t)
 							for (int r = 0; r < class_amount; ++r)
 								layer[i][buf.x][buf.y]->p_xs_Y[k] += layer[i][buf.x][buf.y]->p_xs_cs_ds[k][r][t]
 								* layer[i][buf1.x][buf1.y]->p_xs_Y[t] * layer[i][buf.x][buf.y]->parent->p_xs_Y[r];
-						cout << layer[i][buf.x][buf.y]->p_xs_Y[k] << endl;
+						sum += layer[i][buf.x][buf.y]->p_xs_Y[k];
 					}
+					for (int k = 0; k < class_amount; ++k)
+						layer[i][buf.x][buf.y]->p_xs_Y[k] /= sum;
 				}
 			}
 		}
 	}
 }
 
-//
+// непосредственная классификация пикселей по значению максимума соответствующей апостериорной вероятности
 
 void quad_tree_handler::split_image() {
+	double buf_max;
+	int idx_max;
 	for (int i =0; i < m_image->get_image_len().first; i++) {
-		for (int j = 0; j < m_image->get_image_len().first; j++) {
-			
-			double buf_max = layer[layer_amount - 1][i][j]->p_xs_Y[0];
-			int idx_max = 0;
+		for (int j = 0; j < m_image->get_image_len().first; j++) {	
+			buf_max = layer[layer_amount - 1][i][j]->p_xs_Y[0];
+			idx_max = 0;
 			for (int l = 0; l < class_amount; l++) {
 				//cout << layer[layer_amount - 1][i][j]->p_xs_Y[l] << endl;
 				if (buf_max < layer[layer_amount - 1][i][j]->p_xs_Y[l]) {
@@ -323,7 +323,7 @@ void quad_tree_handler::split_image() {
 	}
 }
 
-//
+// печать классифицированного изображения  в файл
 
 void quad_tree_handler::create_splitted_img() {
 	ofstream out;
@@ -336,6 +336,7 @@ void quad_tree_handler::create_splitted_img() {
 	out.close();
 }
 
+// отрисовка графики - вызов скрипта на python
 
 void quad_tree_handler::draw_graphics() {
 	cout << "end 2" << endl;

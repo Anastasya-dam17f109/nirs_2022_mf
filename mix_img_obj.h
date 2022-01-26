@@ -92,6 +92,8 @@ public:
 	shared_ptr<double[]>  get_shift()     {return re_mix_shift;}
 	shared_ptr<double[]>  get_scale()     {return re_mix_scale;}
 	shared_ptr<shared_ptr<shared_ptr<double[]>[]>[]> get_image() { return layer_mx_img; }
+	shared_ptr <int[]>  get_layer_size() { return layer_size; }
+	int get_layer_amount(){ return layer_amount; }
 
 	~mix_img_obj() {};
 };
