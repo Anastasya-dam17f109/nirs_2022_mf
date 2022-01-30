@@ -1,6 +1,6 @@
 #pragma once
 #include "initial_prob_img.h"
-
+#include "Zig_zag_curve.h"
 #include "Hilbert_curve.h"
 
 struct Node
@@ -14,7 +14,7 @@ struct Node
 	shared_ptr<long double[]> p_xs_ys;
 	unique_ptr<long double[]> p_xs_ds;
 	unique_ptr<unique_ptr<unique_ptr<long double[]>[]>[]> p_xs_cs_ds;
-	unique_ptr<long double[]> p_xs_Y;
+	unique_ptr<unique_ptr<long double[]>[]> p_xs_Y;
 	bool isLeaf() const
 	{
 		return !static_cast<bool>(this->m_children[0]);
@@ -28,8 +28,9 @@ class quad_tree_handler
 	shared_ptr<shared_ptr<double[]>[]> class_flag;
 	shared_ptr<Node>  m_root;
 	int layer_amount = 1;
+	int layer_ord_amount = 6;
 	shared_ptr<shared_ptr<shared_ptr<shared_ptr<Node>[]>[]>[]> layer;
-	shared_ptr<Hilbert_curve[]> layer_order;
+	shared_ptr <shared_ptr<shared_ptr<Basic_curve>[]>[]> layer_order;
 	shared_ptr <int[]>          layer_size;
 	shared_ptr<shared_ptr<double[]>[]> p_xs_xs1;
 	shared_ptr<shared_ptr<double[]>[]> p_xs_layer;

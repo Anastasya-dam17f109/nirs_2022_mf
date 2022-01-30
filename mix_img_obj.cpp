@@ -227,6 +227,7 @@ void mix_img_obj::img_generator() {
 			re_mix_scale[1] = 40.0;
 		}
 	}
+	targ_bright[0] = 180;
 	for (i = 0; i < amount_trg; i++) {
 		if (mixture_type == NORMAL) {
 			if (i > 0 && targ_bright[i] != targ_bright[i - 1]) {

@@ -28,6 +28,8 @@ public:
 	vector<Point> points;
 	Basic_curve() {}
 	Basic_curve(int n_ord):n_order(n_ord){};
+	virtual void get_points_for_curve() { cout << "Basic class" << endl; }
+	virtual void reverse_curve() { cout << "Basic class" << endl; }
 	vector<Point>& get_points() { return  points; }
 	~Basic_curve() {};
 };
