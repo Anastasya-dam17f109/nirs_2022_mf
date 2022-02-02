@@ -10,6 +10,7 @@ public:
 	Zig_zag_curve(int n_ord, int type);
 	virtual void get_points_for_curve();
 	virtual void reverse_curve() { reverse(std::begin(points), std::end(points)); }
+	virtual void transpose_curve() { cout << "Basic class" << endl; }
 	~Zig_zag_curve() {};
 };
 

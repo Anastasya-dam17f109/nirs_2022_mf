@@ -30,17 +30,49 @@ quad_tree_handler::quad_tree_handler(shared_ptr<initial_prob_img> image){
 		layer[i] = shared_ptr<shared_ptr<shared_ptr<Node>[]>[]>(new shared_ptr<shared_ptr<Node>[]>[layer_size[i]]);
 		for (int j = 0; j < layer_size[i]; j++)
 			layer[i][j] = shared_ptr<shared_ptr<Node>[]>(new shared_ptr<Node>[layer_size[i]]);
+
 		// получение порядков - последовательности пикселей - на каждом слое
 		
-		for (int j = 0; j < 4; ++j) {
+		/*for (int j = 0; j < 4; ++j) {
 			layer_order[j][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], j));
 			layer_order[j][i]->get_points_for_curve();
-		}
-		layer_order[4][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i]));
+		}*/
+		layer_order[0][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 0));
+		layer_order[0][i]->get_points_for_curve();
+		layer_order[1][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 0));
+		layer_order[1][i]->get_points_for_curve();
+		layer_order[1][i]->reverse_curve();
+		layer_order[2][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 2));
+		layer_order[2][i]->get_points_for_curve();
+		layer_order[3][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 2));
+		layer_order[3][i]->get_points_for_curve();
+		layer_order[3][i]->reverse_curve();
+
+		layer_order[4][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0));
 		layer_order[4][i]->get_points_for_curve();
-		layer_order[5][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i]));
+		layer_order[5][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0));
 		layer_order[5][i]->get_points_for_curve();
 		layer_order[5][i]->reverse_curve();
+
+		/*layer_order[6][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 1));
+		layer_order[6][i]->get_points_for_curve();
+
+		layer_order[7][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 1));
+		layer_order[7][i]->get_points_for_curve();
+		layer_order[7][i]->reverse_curve();*/
+
+		layer_order[6][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i],3));
+		layer_order[6][i]->get_points_for_curve();
+		
+		/*layer_order[7][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i],3));
+		layer_order[7][i]->get_points_for_curve();
+		layer_order[7][i]->reverse_curve();*/
+		
+		/*for (int j = 6; j < 6+4; ++j) {
+			layer_order[j][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], j-6));
+			layer_order[j][i]->get_points_for_curve();
+			layer_order[j][i]->reverse_curve();
+		}*/
 		p_xs_layer[i] = shared_ptr<double[]>(new double[class_amount]);
 		if (i == 0)
 			for (int j = 0; j < class_amount; ++j)
@@ -325,7 +357,7 @@ void quad_tree_handler::up_down_pass() {
 
 // непосредственная классификация пикселей по значению максимума соответствующей апостериорной вероятности
 
-void quad_tree_handler::split_image() {
+void quad_tree_handler::split_image_by_summ() {
 	double buf_max;
 	double buf_prob;
 	int idx_max;
@@ -334,6 +366,7 @@ void quad_tree_handler::split_image() {
 			buf_max = 0;
 			for (int k = 0; k < layer_ord_amount; ++k)
 				buf_max += layer[layer_amount - 1][i][j]->p_xs_Y[k][0];
+				/*buf_max += layer[layer_amount - 1][i][j]->p_xs_ys[0];*/
 			
 			idx_max = 0;
 			for (int l = 0; l < class_amount; l++) {
@@ -341,6 +374,7 @@ void quad_tree_handler::split_image() {
 				buf_prob = 0;
 				for (int k = 0; k < layer_ord_amount; ++k)
 					buf_prob += layer[layer_amount - 1][i][j]->p_xs_Y[k][l];
+				/*buf_prob += layer[layer_amount - 1][i][j]->p_xs_ys[l];*/
 				if (buf_max < buf_prob) {
 					buf_max = buf_prob;
 					idx_max = l;
@@ -351,6 +385,56 @@ void quad_tree_handler::split_image() {
 	}
 }
 
+//
+
+void quad_tree_handler::split_image_by_vote() {
+	
+	vector<double> buf_max;
+	vector<int> idx_max;
+	vector<int> pix_cl_amount;
+	int weight_idx_max;
+	for (int i = 0; i < layer_ord_amount; ++i) {
+		buf_max.push_back(0);
+		idx_max.push_back(0);
+	}
+	for (int i = 0; i < class_amount; ++i) 
+		pix_cl_amount.push_back(0);
+
+	for (int i = 0; i < m_image->get_image_len().first; i++) {
+		for (int j = 0; j < m_image->get_image_len().first; j++) {
+			// зануление 
+			for (int k = 0; k < layer_ord_amount; ++k) {
+				buf_max[k] = 0;
+				idx_max[k] = 0;
+			}
+			for (int k = 0; k < class_amount; ++k)
+				pix_cl_amount[k] = 0;
+
+			for (int k = 0; k < layer_ord_amount; ++k) {
+				buf_max[k] = layer[layer_amount - 1][i][j]->p_xs_Y[k][0];
+
+				idx_max[k] = 0;
+				for (int l = 0; l < class_amount; l++) {
+					//cout << layer[layer_amount - 1][i][j]->p_xs_Y[l] << endl;
+					
+					
+					if (buf_max[k] < layer[layer_amount - 1][i][j]->p_xs_Y[k][l]) {
+						buf_max[k] = layer[layer_amount - 1][i][j]->p_xs_Y[k][l];
+						idx_max[k] = l;
+					}
+				}
+				pix_cl_amount[idx_max[k]] += 1;
+			}
+			weight_idx_max = 0;
+			for (int k = 0; k < class_amount; ++k)
+				if (pix_cl_amount[weight_idx_max] < pix_cl_amount[k])
+					weight_idx_max = k;
+			class_flag[i][j] = weight_idx_max + 1;
+		}
+	}
+}
+
+
 // печать классифицированного изображения  в файл
 
 void quad_tree_handler::create_splitted_img() {
@@ -359,6 +443,7 @@ void quad_tree_handler::create_splitted_img() {
 	for (int i = 0; i < m_image->get_image_len().first; i++) {
 		for (int j = 0; j < m_image->get_image_len().first; j++)
 			out << class_flag[i][j] << " ";
+
 		out << std::endl;
 	}
 	out.close();

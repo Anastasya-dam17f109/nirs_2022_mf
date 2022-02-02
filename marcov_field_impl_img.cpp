@@ -29,7 +29,8 @@ int main() {
 	quad_tree_handler bbbb = quad_tree_handler(ptr_img);
 	bbbb.bottom_up_pass();
 	bbbb.up_down_pass();
-	bbbb.split_image();
+	bbbb.split_image_by_summ();
+	//bbbb.split_image_by_vote();
 	bbbb.create_splitted_img();
 	bbbb.draw_graphics();
 	//mix_img_obj("C:\\Users\\anastasya\\Desktop\\data_test.txt");

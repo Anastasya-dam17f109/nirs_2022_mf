@@ -3,8 +3,10 @@
 
 // конструктор
 
-Hilbert_curve::Hilbert_curve(int n_ord) :
-	Basic_curve(n_ord){}
+Hilbert_curve::Hilbert_curve(int n_ord, int type) :
+	Basic_curve(n_ord){
+	curve_type = type;
+}
 
 // создание точки кривой заданного порядка
 
@@ -28,6 +30,57 @@ Point Hilbert_curve::from_d(int step) {
 void Hilbert_curve::get_points_for_curve() {
 	for (int d = 0; d < n_order * n_order; ++d) 
 		points.push_back(from_d(d));
+	switch (curve_type) {
+		case 0:{}
+		break;
+		case 1: {
+			// поворот на 90против часовой - как транспонирование
+			transpose_curve();
+		}
+		break;
+		case 2: {
+			// отражение относительно гризонтальной прямой
+			reflect_curve(false);
+		}
+		break;
+		case 3: {
+			// поворот на 90по часовой - как транспонирование
+			transpose_curve();
+			reflect_curve(true);
+		}
+		break;
+	}
+}
+
+// поворот-транспонирование
+
+void Hilbert_curve::transpose_curve() {
+	int buf;
+	for (auto &point : points) {
+		buf = point.x;
+		point.x = point.y;
+		point.y = buf;
+	}
+}
+
+
+// зеркальное отражение относительно оси(горизонталь пока)
+
+void Hilbert_curve::reflect_curve(bool x_flag) {
+	int buf_dist;
+	int mid = n_order / 2;
+	if (x_flag) {
+		for (auto &point : points) 
+			point.x = n_order - 1 - point.x;
+	}
+	else {
+		for (auto &point : points)
+			point.y = n_order - 1 - point.y;
+	}
+	/*std::vector<std::string> lines = draw_curve();
+		for (auto &line : lines) {
+			std::cout << line.c_str() << '\n';
+		}*/
 }
 
 // отрисовка точек  Гильбертовой кривой

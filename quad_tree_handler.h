@@ -28,13 +28,13 @@ class quad_tree_handler
 	shared_ptr<shared_ptr<double[]>[]> class_flag;
 	shared_ptr<Node>  m_root;
 	int layer_amount = 1;
-	int layer_ord_amount = 6;
+	const int layer_ord_amount = 7;
 	shared_ptr<shared_ptr<shared_ptr<shared_ptr<Node>[]>[]>[]> layer;
 	shared_ptr <shared_ptr<shared_ptr<Basic_curve>[]>[]> layer_order;
 	shared_ptr <int[]>          layer_size;
 	shared_ptr<shared_ptr<double[]>[]> p_xs_xs1;
 	shared_ptr<shared_ptr<double[]>[]> p_xs_layer;
-	double theta = 0.9;
+	double theta = 0.7;
 	int class_amount = 1;
 
 	
@@ -48,7 +48,8 @@ public:
 	void p_xs_layer_generator();
 	void bottom_up_pass();
 	void up_down_pass();
-	void split_image();
+	void split_image_by_summ();
+	void split_image_by_vote();
 	void create_splitted_img();
 	void draw_graphics();
 	~quad_tree_handler();
