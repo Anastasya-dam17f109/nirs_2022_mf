@@ -47,14 +47,26 @@ quad_tree_handler::quad_tree_handler(shared_ptr<initial_prob_img> image){
 		layer_order[3][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 2, true));
 		layer_order[3][i]->get_points_for_curve();
 	
-
-		layer_order[4][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, false));
+		// спирали
+		layer_order[4][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 2, false));
 		layer_order[4][i]->get_points_for_curve();
-		layer_order[5][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, true));
+		layer_order[5][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 0, false));
 		layer_order[5][i]->get_points_for_curve();
+
+		layer_order[8][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 1, false));
+		layer_order[8][i]->get_points_for_curve();
+
+		layer_order[6][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, false));
+		layer_order[6][i]->get_points_for_curve();
+		layer_order[7][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, true));
+		layer_order[7][i]->get_points_for_curve();
 	
+		layer_order[9][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 2, true));
+		layer_order[9][i]->get_points_for_curve();
+		/*layer_order[10][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 2, false));
+		layer_order[10][i]->get_points_for_curve();*/
 
-
+		
 		/*layer_order[6][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i],3, false));
 		layer_order[6][i]->get_points_for_curve();
 		
@@ -62,28 +74,19 @@ quad_tree_handler::quad_tree_handler(shared_ptr<initial_prob_img> image){
 		layer_order[7][i]->get_points_for_curve();
 		*/
 
-		layer_order[6][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 1, false));
-		layer_order[6][i]->get_points_for_curve();
-
-		layer_order[7][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 1, true));
-		layer_order[7][i]->get_points_for_curve();
-
-		layer_order[8][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 2, false));
-		layer_order[8][i]->get_points_for_curve();
-		layer_order[9][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 0, false));
-		layer_order[9][i]->get_points_for_curve();
-		/*layer_order[10][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 2, false));
+		
+		
+		/*layer_order[10][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 1, false));
 		layer_order[10][i]->get_points_for_curve();
 		layer_order[11][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 3, false));
 		layer_order[11][i]->get_points_for_curve();*/
 		
 
-		layer_order[10][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i],2, false));
-		layer_order[10][i]->get_points_for_curve();
-
-		layer_order[11][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i],2,true));
-		layer_order[11][i]->get_points_for_curve();
 		
+
+		/*layer_order[11][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i],1,true));
+		layer_order[11][i]->get_points_for_curve();
+		*/
 
 		/*for (int j = 6; j < 6+4; ++j) {
 			layer_order[j][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], j-6));
@@ -123,6 +126,126 @@ quad_tree_handler::quad_tree_handler(shared_ptr<initial_prob_img> image){
 	}*/
 }
 
+//
+
+quad_tree_handler::quad_tree_handler(shared_ptr<initial_prob_img> image, int size) {
+	m_image = image;
+	class_amount = m_image->get_class_amount();
+	class_flag = shared_ptr<shared_ptr<double[]>[]>(new shared_ptr<double[]>[size]);
+	for (int i = 0; i < m_image->get_image_len().first; ++i)
+		class_flag[i] = shared_ptr<double[]>(new double[size]);
+	int i = 2;
+	while (i < size) {
+		i *= 2;
+		layer_amount++;
+	}
+
+	layer_size = shared_ptr <int[]>(new int[layer_amount]);
+
+	layer_order = shared_ptr < shared_ptr<shared_ptr<Basic_curve>[]>[]>(new  shared_ptr<shared_ptr<Basic_curve>[]>[layer_ord_amount]);
+	for (int i = 0; i < layer_ord_amount; ++i)
+		layer_order[i] = shared_ptr<shared_ptr<Basic_curve>[]>(new shared_ptr<Basic_curve>[layer_amount]);
+
+	layer = shared_ptr<shared_ptr<shared_ptr<shared_ptr<Node>[]>[]>[]>(new shared_ptr<shared_ptr<shared_ptr<Node>[]>[]>[layer_amount]);
+
+	p_xs_xs1 = shared_ptr<shared_ptr<double[]>[]>(new shared_ptr<double[]>[class_amount]);
+	p_xs_layer = shared_ptr<shared_ptr<double[]>[]>(new shared_ptr<double[]>[layer_amount]);
+
+	for (int i = 0; i < layer_amount; ++i) {
+		layer_size[i] = pow(2, i + 1);
+		layer[i] = shared_ptr<shared_ptr<shared_ptr<Node>[]>[]>(new shared_ptr<shared_ptr<Node>[]>[layer_size[i]]);
+		for (int j = 0; j < layer_size[i]; j++)
+			layer[i][j] = shared_ptr<shared_ptr<Node>[]>(new shared_ptr<Node>[layer_size[i]]);
+
+		// получение порядков - последовательности пикселей - на каждом слое
+
+		/*for (int j = 0; j < 4; ++j) {
+			layer_order[j][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], j, false));
+			layer_order[j][i]->get_points_for_curve();
+		}*/
+		layer_order[0][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 0, false));
+		layer_order[0][i]->get_points_for_curve();
+		layer_order[1][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 0, true));
+		layer_order[1][i]->get_points_for_curve();
+
+		layer_order[2][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 2, false));
+		layer_order[2][i]->get_points_for_curve();
+		layer_order[3][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 2, true));
+		layer_order[3][i]->get_points_for_curve();
+
+		// спирали
+		layer_order[4][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 2, false));
+		layer_order[4][i]->get_points_for_curve();
+		layer_order[5][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 0, false));
+		layer_order[5][i]->get_points_for_curve();
+
+		layer_order[8][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 1, false));
+		layer_order[8][i]->get_points_for_curve();
+
+		layer_order[6][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, false));
+		layer_order[6][i]->get_points_for_curve();
+		layer_order[7][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, true));
+		layer_order[7][i]->get_points_for_curve();
+
+		layer_order[9][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 2, true));
+		layer_order[9][i]->get_points_for_curve();
+		/*layer_order[10][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 2, false));
+		layer_order[10][i]->get_points_for_curve();*/
+
+
+		/*layer_order[6][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i],3, false));
+		layer_order[6][i]->get_points_for_curve();
+
+		layer_order[7][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i],3,true));
+		layer_order[7][i]->get_points_for_curve();
+		*/
+
+		/*layer_order[10][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 1, false));
+		layer_order[10][i]->get_points_for_curve();
+		layer_order[11][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 3, false));
+		layer_order[11][i]->get_points_for_curve();*/
+
+		/*layer_order[11][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i],1,true));
+		layer_order[11][i]->get_points_for_curve();
+		*/
+
+		/*for (int j = 6; j < 6+4; ++j) {
+			layer_order[j][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], j-6));
+			layer_order[j][i]->get_points_for_curve();
+			layer_order[j][i]->reverse_curve();
+		}*/
+		p_xs_layer[i] = shared_ptr<double[]>(new double[class_amount]);
+		if (i == 0)
+			for (int j = 0; j < class_amount; ++j)
+				p_xs_layer[i][j] = m_image->get_cl_probs()[j];
+		else
+			for (int j = 0; j < class_amount; ++j)
+				p_xs_layer[i][j] = 0;
+	}
+	for (int i = 0; i < class_amount; ++i)
+		p_xs_xs1[i] = shared_ptr<double[]>(new double[class_amount]);
+
+	m_root = shared_ptr<Node>(new Node);
+	m_root->parent = nullptr;
+	m_root->l_corner = pair<int, int>(0, 0);
+
+	build_quad_tree(m_root, 0);
+	p_xs_matrix_generator();
+	p_xs_layer_generator();
+	
+
+}
+
+void quad_tree_handler::set_probabilities(int i_idx, int j_idx) {
+	for (int i = 0; i < layer_amount; ++i) {
+		for (int j = 0; j < layer_size[i]; ++j)
+			for (int k = 0; k < layer_size[i]; ++k)
+				for (int l = 0; l < class_amount; ++l)
+					layer[i][j][k]->p_xs_ys[l] =
+						m_image->get_image()[i][i_idx*layer_size[i] + j][j_idx*layer_size[i] + k][l];
+	}
+}
+
 // построение структуры квадродерева, причем так, чтобы пиксели группировались в слои
 
 void quad_tree_handler::build_quad_tree(shared_ptr<Node> elem, int n_layer) {
@@ -155,8 +278,8 @@ void quad_tree_handler::build_quad_tree(shared_ptr<Node> elem, int n_layer) {
 				elem->m_children[j + 2 * i]->l_corner
 					= pair<int, int>(elem->l_corner.first * 2 + i, elem->l_corner.second * 2 + j);
 				for (int k = 0; k < class_amount; ++k) {
-					elem->m_children[j + 2 * i]->p_xs_ys[k]
-						= m_image->get_image()[n_layer][elem->m_children[j + 2 * i]->l_corner.first][elem->m_children[j + 2 * i]->l_corner.second][k];
+					/*elem->m_children[j + 2 * i]->p_xs_ys[k]
+						= m_image->get_image()[n_layer][elem->m_children[j + 2 * i]->l_corner.first][elem->m_children[j + 2 * i]->l_corner.second][k];*/
 					elem->m_children[j + 2 * i]->p_xs_ds[k]
 						= elem->m_children[j + 2 * i]->p_xs_ys[k];
 				}
@@ -193,11 +316,11 @@ void quad_tree_handler::build_quad_tree(shared_ptr<Node> elem, int n_layer) {
 				layer[n_layer][elem->l_corner.first*2 + i][elem->l_corner.second*2 + j] = elem->m_children[j + 2 * i];
 				elem->m_children[j + 2 * i]->l_corner
 					= pair<int, int>(elem->l_corner.first* 2 + i, elem->l_corner.second* 2 + j);
-				for (int k = 0; k < class_amount; ++k) {
+				/*for (int k = 0; k < class_amount; ++k) {
 					elem->m_children[j + 2 * i]->p_xs_ys[k]
 						= m_image->get_image()[n_layer][elem->m_children[j + 2 * i]->l_corner.first][elem->m_children[j + 2 * i]->l_corner.second][k];
 					
-				}
+				}*/
 			}
 		}
 		for (int i = 0; i < 4; ++i)

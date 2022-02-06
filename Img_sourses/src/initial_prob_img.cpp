@@ -82,6 +82,34 @@ initial_prob_img::initial_prob_img(int img_size, mix_type mix_t, int amount_targ
 	generate_init_probs_mixtures();
 }
 
+//
+
+initial_prob_img::initial_prob_img(string file_name, int img_size, mix_type mix_t, int amount_targets, int classes) {
+	m_image = shared_ptr<mix_img_obj>(new mix_img_obj(file_name, img_size, mix_t, amount_targets, classes));
+	image_len_x = m_image->get_image_len().first;
+	image_len_y = m_image->get_image_len().second;
+	class_amount = m_image->get_class_amount();
+	mix_shift = m_image->get_shift();
+	mix_scale = m_image->get_scale();
+	layer_amount = m_image->get_layer_amount();
+	layer_size = m_image->get_layer_size();
+	cl_probs = shared_ptr<double[]>(new double[class_amount]);
+	for (int i = 0; i < class_amount; ++i)
+		cl_probs[i] = 1.0 / class_amount;
+
+
+	init_prob_img = shared_ptr <shared_ptr<shared_ptr<shared_ptr<double[]>[]>[]>[]>(new shared_ptr<shared_ptr<shared_ptr<double[]>[]>[]>[layer_amount]);
+	for (int k = 0; k < layer_amount; ++k) {
+		init_prob_img[k] = shared_ptr<shared_ptr<shared_ptr<double[]>[]>[]>(new shared_ptr<shared_ptr<double[]>[]>[layer_size[k]]);
+		for (int i = 0; i < layer_size[k]; i++) {
+			init_prob_img[k][i] = shared_ptr<shared_ptr<double[]>[]>(new shared_ptr<double[]>[layer_size[k]]);
+			for (int j = 0; j < layer_size[k]; j++)
+				init_prob_img[k][i][j] = shared_ptr<double[]>(new double[class_amount]);
+		}
+	}
+	generate_init_probs_mixtures();
+}
+
 // вычисление начальных значений вероятностей через одномерные смеси
 
 void initial_prob_img::generate_init_probs_mixtures() {

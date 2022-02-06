@@ -30,7 +30,7 @@ class quad_tree_handler
 	shared_ptr<shared_ptr<double[]>[]> class_flag;
 	shared_ptr<Node>  m_root;
 	int layer_amount = 1;
-	const int layer_ord_amount = 12;
+	const int layer_ord_amount = 10;
 	shared_ptr<shared_ptr<shared_ptr<shared_ptr<Node>[]>[]>[]> layer;
 	shared_ptr <shared_ptr<shared_ptr<Basic_curve>[]>[]> layer_order;
 	shared_ptr <int[]>          layer_size;
@@ -45,7 +45,9 @@ class quad_tree_handler
 public:
 	
 	quad_tree_handler(shared_ptr<initial_prob_img> image);
+	quad_tree_handler(shared_ptr<initial_prob_img> image,  int size);
 	void build_quad_tree(shared_ptr<Node> elem, int n_layer);
+	void set_probabilities(int i_idx, int j_idx);
 	void p_xs_matrix_generator();
 	void p_xs_layer_generator();
 	void bottom_up_pass();

@@ -17,6 +17,7 @@ class initial_prob_img
 
 public:
 	initial_prob_img(int img_size, mix_type mix_t, int amount_targets, int classes);
+	initial_prob_img(string file_name, int img_size, mix_type mix_t, int amount_targets, int classes);
 	initial_prob_img(shared_ptr<mix_img_obj> image);
 	initial_prob_img(string filename);
 	void generate_init_probs_mixtures();

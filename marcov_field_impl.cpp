@@ -23,11 +23,15 @@ int main() {
 	//		std::cout << '(' << point.x << ',' << point.y << ')' << '\n';
 	//	std::cout << '\n';
 	//}
-	/*initial_prob_img *img = new initial_prob_img(32, NORMAL, 1, 2);*/
-	initial_prob_img *img = new initial_prob_img(32, RAYLEIGH, 1, 2);
+	//initial_prob_img *img = new initial_prob_img(32, NORMAL, 1, 2);
+	//initial_prob_img *img = new initial_prob_img(32, RAYLEIGH, 1, 2);
+	/*initial_prob_img *img = new initial_prob_img("D:\\generated_image.txt", 32, RAYLEIGH, 1, 2);*/
+	initial_prob_img *img = new initial_prob_img("D:\\generated_image.txt", 32, NORMAL, 1, 2);
+	
 	shared_ptr<initial_prob_img> ptr_img(img);
 
-	quad_tree_handler bbbb = quad_tree_handler(ptr_img);
+	quad_tree_handler bbbb = quad_tree_handler(ptr_img, 32);
+	bbbb.set_probabilities(0, 0);
 	bbbb.bottom_up_pass();
 	bbbb.up_down_pass();
 	//bbbb.split_image_by_summ();

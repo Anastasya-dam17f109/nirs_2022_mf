@@ -70,9 +70,11 @@ class mix_img_obj
 public:
 	mix_img_obj() {};
 	mix_img_obj(int img_size, mix_type mix_t, int amount_targets, int classes);
+	mix_img_obj(string file_name, int img_size, mix_type mix_t, int amount_targets, int classes);
 	mix_img_obj(string file_name);
 	
 	void     img_generator();
+	void     img_generator_from_file(string file_name);
 	void     alloc_layer_mmr();
 	void     img_accumulation();
 	void	 load_from_bitmap();
