@@ -1,5 +1,5 @@
-#include "pch.h"
 
+#include <fstream> // подключаем файлы
 #include "mix_img_obj.h"
 
 boost::random::mt19937 generator_{ static_cast<std::uint32_t>(time(0)) };
@@ -42,15 +42,16 @@ mix_img_obj::mix_img_obj(string file_name) {
 	int mask_amount = 0;
 	int stat_mask_amount = 0;
 	string buf;
-	int input_mix_num;
+	int input_mix_num = 0;
 	
 	load_params.open(file_name);
 	load_params >> files_amount;
 	load_params >> class_amount;
 	load_params >> mask_amount;
 	load_params >> stat_mask_amount;
-	load_params >> input_mix_num;
-	mixture_type = static_cast<mix_type>(input_mix_num);;
+	//load_params >> input_mix_num;
+	//getline(load_params, buf);
+	//mixture_type = static_cast<mix_type>(input_mix_num);;
 
 	class_list         = unique_ptr<wstring[]>(new wstring[class_amount]);
 	load_mask_list     = make_unique<wstring[]>(mask_amount);
@@ -58,11 +59,14 @@ mix_img_obj::mix_img_obj(string file_name) {
 	mask_list    = shared_ptr<wstring[]>(new wstring[stat_mask_amount]);
 	re_mix_shift = shared_ptr<double[]>(new double[class_amount]);
 	re_mix_scale = shared_ptr<double[]>(new double[class_amount]);
-	
+
+	load_params >> buf;
+	if (buf == "lognormal")
+		mixture_type = LOGNORMAL;
 	load_params >> buf;
 	filename_load_image = wstring(buf.begin(), buf.end());
 	
-	for (int i = 0; i < class_amount; ++i) {
+	for (unsigned i = 0; i < class_amount; ++i) {
 		load_params >> buf;
 		class_list[i] = wstring(buf.begin(), buf.end());
 	}
@@ -82,8 +86,9 @@ mix_img_obj::mix_img_obj(string file_name) {
 		mask_list[i] = wstring(buf.begin(), buf.end());
 	}
 	load_params.close();
-	
+	cout << "im_here" << endl;
 	load_from_bitmap();
+	
 	img_accumulation();
 	print_results();
 }
@@ -91,7 +96,8 @@ mix_img_obj::mix_img_obj(string file_name) {
 // загрузка изображений из файла
 
 void mix_img_obj::load_from_bitmap() {
-	int y_len, x_len, i, j, k, buf_amount=0;
+	int y_len, x_len,  j, k, buf_amount=0;
+	unsigned i;
 	bool mask_flag = false;
 	CImage image;
 	CImage image_mask;
@@ -111,7 +117,7 @@ void mix_img_obj::load_from_bitmap() {
 	image_len_x = i;
 	image_len_y = i;
 	alloc_layer_mmr();
-	
+	cout << "im_here" << endl;
 	for (i = 0; i < image_len_x; i++) 
 		for (j = 0; j < image_len_y; j++) 
 			layer_mx_img[layer_amount-1][image_len_x - i - 1][j] = double(GetGValue(image.GetPixel(j, i)));
@@ -127,6 +133,7 @@ void mix_img_obj::load_from_bitmap() {
 		auto pred = find(load_mask_list_idx.begin(), load_mask_list_idx.end(), k);
 		if (pred != load_mask_list_idx.end()) {
 			mask_flag = true;
+			cout << distance(load_mask_list_idx.begin(), pred) << endl;
 			image_mask.Load(load_mask_list[distance(load_mask_list_idx.begin(), pred)].c_str());
 		}
 		else
@@ -406,13 +413,16 @@ void  mix_img_obj::alloc_layer_mmr(){
 	}
 
 	layer_size = shared_ptr <int[]>(new int[layer_amount]);
-	layer_mx_img = shared_ptr<shared_ptr<shared_ptr<double[]>[]>[]>(new shared_ptr<shared_ptr<double[]>[]>[layer_amount]);
+	layer_mx_img = new double**[layer_amount];
+		//shared_ptr<shared_ptr<shared_ptr<double[]>[]>[]>(new shared_ptr<shared_ptr<double[]>[]>[layer_amount]);
 
 	for (int i = 0; i < layer_amount; ++i) {
 		layer_size[i] = pow(2, i + 1);
-		layer_mx_img[i] = shared_ptr<shared_ptr<double[]>[]>(new shared_ptr<double[]>[layer_size[i]]);
+		layer_mx_img[i] = new double*[layer_size[i]];
+			//shared_ptr<shared_ptr<double[]>[]>(new shared_ptr<double[]>[layer_size[i]]);
 		for (int j = 0; j < layer_size[i]; j++)
-			layer_mx_img[i][j] = shared_ptr<double[]>(new double[layer_size[i]]);
+			layer_mx_img[i][j] = new double[layer_size[i]];
+			//shared_ptr<double[]>(new double[layer_size[i]]);
 	}
 }
 
@@ -422,9 +432,11 @@ void  mix_img_obj::alloc_layer_mmr(){
 void  mix_img_obj::img_accumulation() {
 	for (int i = layer_amount - 2; i > -1; i--) 
 		for (int k = 0; k < layer_size[i]; ++k) 
-			for (int l = 0; l < layer_size[i]; ++l) 
-				layer_mx_img[i][k][l] = (layer_mx_img[i+1][2*k][2*l] + layer_mx_img[i + 1][2 * k + 1][2 * l]
-					+ layer_mx_img[i + 1][2 * k][2 * l + 1]+ layer_mx_img[i + 1][2 * k + 1][2 * l + 1]) / 4.0;
+			for (int l = 0; l < layer_size[i]; ++l) {
+				layer_mx_img[i][k][l] = (layer_mx_img[i + 1][2 * k][2 * l] + layer_mx_img[i + 1][2 * k + 1][2 * l]
+					+ layer_mx_img[ i + 1][2 * k][2 * l + 1] + layer_mx_img[i + 1][2 * k + 1][2 * l + 1]) / 4.0;
+				//cout << k << " " << l << endl;
+			}
 }
 
 //вывод сведений об изображении
@@ -455,7 +467,7 @@ void  mix_img_obj::print_results() {
 
 //вычисление среднего арифметического
 
-int mix_img_obj::mean(shared_ptr<shared_ptr<double[]>[]> data) {
+int mix_img_obj::mean(double** data) {
 	double result = 0;
 	for (int k = 0; k < image_len_x; k++) {
 		for (int l = 0; l < image_len_y; l++)

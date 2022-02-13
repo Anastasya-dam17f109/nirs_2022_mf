@@ -1,4 +1,4 @@
-#include "pch.h"
+//#include "pch.h"
 #include "Zig_zag_curve.h"
 
 

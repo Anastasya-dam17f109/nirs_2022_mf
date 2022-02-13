@@ -1,14 +1,12 @@
 ﻿// marcov_field_impl.cpp : Этот файл содержит функцию "main". Здесь начинается и заканчивается выполнение программы.
-//
-
-#include "pch.h"
-#include "Hilbert_curve.h"
-#include "Zig_zag_curve.h"
 #include "quad_tree_handler.h"
-
+#include <boost/filesystem.hpp>
+#include "mixture_handler.h"
+using namespace boost::filesystem;
 int main() {
 	//for (int order = 1; order < 3; order++) {
-
+	//normal s;
+	//cout << s.mean() << endl;
 	//	int n = 1 << order;
 	//	//Hilbert_curve curve(n);
 	//	cout << n;
@@ -26,18 +24,25 @@ int main() {
 	//initial_prob_img *img = new initial_prob_img(32, NORMAL, 1, 2);
 	//initial_prob_img *img = new initial_prob_img(32, RAYLEIGH, 1, 2);
 	/*initial_prob_img *img = new initial_prob_img("D:\\generated_image.txt", 32, RAYLEIGH, 1, 2);*/
-	initial_prob_img *img = new initial_prob_img("D:\\generated_image.txt", 32, NORMAL, 1, 2);
+	//initial_prob_img *img = new initial_prob_img("D:\\generated_image.txt", 32, NORMAL, 1, 2);
+	initial_prob_img *img = new initial_prob_img("C:\\Users\\anastasya\\Desktop\\data_test.txt");
 	
 	shared_ptr<initial_prob_img> ptr_img(img);
-
-	quad_tree_handler bbbb = quad_tree_handler(ptr_img, 32);
-	bbbb.set_probabilities(0, 0);
-	bbbb.bottom_up_pass();
-	bbbb.up_down_pass();
-	//bbbb.split_image_by_summ();
-	bbbb.split_image_by_vote();
-	bbbb.create_splitted_img();
-	bbbb.draw_graphics();
+	mixture_handler t(ptr_img->get_m_image(), 5, 0.001);
+	t.optimal_redraw_opMP();
+	t.kolmogorov_optimal_redraw_opMP();
+	t.printInformation();
+	t.draw_graphics();
+	//quad_tree_handler bbbb = quad_tree_handler(ptr_img, 32);
+	//bbbb.set_probabilities(0, 0);
+	//bbbb.bottom_up_pass();
+	//bbbb.up_down_pass();
+	////bbbb.split_image_by_summ();
+	//bbbb.split_image_by_vote();
+	//bbbb.create_splitted_img();
+	//bbbb.draw_graphics();
+	//path p{ "C:\\Windows\\System" };
+	//std::cout << p.string() << '\n';
 	//mix_img_obj("C:\\Users\\anastasya\\Desktop\\data_test.txt");
 	return 0;
 }

@@ -1,5 +1,6 @@
 #pragma once
 #include <iostream>
+
 #include <fstream>
 #include <cmath>
 #include <ctime>
@@ -38,7 +39,7 @@ enum mix_type {
 
 class mix_img_obj
 {
-	shared_ptr<shared_ptr<shared_ptr<double[]>[]>[]> layer_mx_img;
+	double*** layer_mx_img;
 	shared_ptr <int[]>          layer_size;
 	int layer_amount = 1;
 	
@@ -79,25 +80,34 @@ public:
 	void     img_accumulation();
 	void	 load_from_bitmap();
 	void     print_results();
-	int      mean(shared_ptr<shared_ptr<double[]>[]>);
+	int      mean(double**);
 
 	string   get_filename()     {return filename_gen_image;}
 	unsigned get_min_targ_size(){return min_targ_size;}
 	double   get_bask_shift()   {return re_mix_shift[0];}
 	double   get_bask_scale()   {return re_mix_scale[0];}
 	mix_type get_mixture_type() {return mixture_type;}
-	int      get_class_amount() {return class_amount;}
+	unsigned      get_class_amount() {return class_amount;}
 	CString  get_item_type()    {return item_type;}
+
 	shared_ptr<target[]>  get_targets() { return targs; }
 	shared_ptr<wstring[]> get_mask_list() {return mask_list; }
 	std::pair<int, int>   get_image_len() {return std::pair<int, int>(image_len_x, image_len_y); }
 	shared_ptr<double[]>  get_shift()     {return re_mix_shift;}
 	shared_ptr<double[]>  get_scale()     {return re_mix_scale;}
-	shared_ptr<shared_ptr<shared_ptr<double[]>[]>[]> get_image() { return layer_mx_img; }
-	shared_ptr <int[]>  get_layer_size() { return layer_size; }
-	int get_layer_amount(){ return layer_amount; }
+	shared_ptr <int[]>    get_layer_size() { return layer_size; }
+	unsigned              get_layer_amount() { return layer_amount; }
+	double*** get_image() { return layer_mx_img; }
+	double**  get_raw_image(){ return layer_mx_img[layer_amount-1]; }
 
-	~mix_img_obj() {};
+	~mix_img_obj() {
+		for (int i = 0; i < layer_amount; ++i) {
+			for (int j = 0; j < layer_size[i]; ++j)
+				delete[] layer_mx_img[i][j];
+			delete[] layer_mx_img[i];
+		}
+		delete layer_mx_img;
+	};
 };
 
 

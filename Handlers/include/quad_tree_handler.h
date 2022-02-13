@@ -29,15 +29,15 @@ class quad_tree_handler
 	shared_ptr<initial_prob_img> m_image;
 	shared_ptr<shared_ptr<double[]>[]> class_flag;
 	shared_ptr<Node>  m_root;
-	int layer_amount = 1;
-	const int layer_ord_amount = 10;
+	unsigned layer_amount = 1;
+	const unsigned layer_ord_amount = 10;
 	shared_ptr<shared_ptr<shared_ptr<shared_ptr<Node>[]>[]>[]> layer;
 	shared_ptr <shared_ptr<shared_ptr<Basic_curve>[]>[]> layer_order;
 	shared_ptr <int[]>          layer_size;
 	shared_ptr<shared_ptr<double[]>[]> p_xs_xs1;
 	shared_ptr<shared_ptr<double[]>[]> p_xs_layer;
 	double theta = 0.7;
-	int class_amount = 1;
+	unsigned class_amount = 1;
 
 	
 	string filename_gen_image = "D:\\generated_image.txt";

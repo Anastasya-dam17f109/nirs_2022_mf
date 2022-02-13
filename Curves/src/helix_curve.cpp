@@ -1,4 +1,4 @@
-#include "pch.h"
+//#include "pch.h"
 #include "helix_curve.h"
 
 // генерация точек кривой-спирали

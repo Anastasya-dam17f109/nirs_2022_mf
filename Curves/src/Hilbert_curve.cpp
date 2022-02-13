@@ -1,4 +1,4 @@
-#include "pch.h"
+
 #include "Hilbert_curve.h"
 
 // конструктор
