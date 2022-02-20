@@ -623,7 +623,7 @@ void mixture_handler::mixture_optimal_redraw_opMP() {
 					
 					for (l = 0; l < loc_u_new_n; ++l) {
 						summ = 0;
-						pix_buf = raw_image[x_min + l / y_l][y_min + l % y_l];
+						pix_buf = raw_image[(x_min + l / y_l)*img_l_x + y_min + l % y_l];
 						for (t = 0; t < loc_hyp_cl_amount; ++t) {
 						//if (mixture_type == "normal")
 							//summ += sum_func(mix_shift[t], mix_scale[t], new_weights[t], pix_buf);
@@ -797,7 +797,7 @@ void mixture_handler::mixture_optimal_redraw_opMP_V2(){
 
 					for (l = ofset * u_new_n; l < ofset* u_new_n + loc_u_new_n; ++l) {
 						summ = 0;
-						pix_buf = raw_image[x_min + (l - ofset * u_new_n) / y_l][y_min + (l - ofset * u_new_n) % y_l];
+						pix_buf = raw_image[(x_min + (l - ofset * u_new_n) / y_l)*img_l_x + y_min + (l - ofset * u_new_n) % y_l];
 						for (t = 0; t < loc_hyp_cl_amount; ++t) {
 							if (mixture_type == NORMAL)
 								summ += new_weights[t] * (1 / (mix_scale[t] * sq_pi))*exp(-((pix_buf
@@ -907,10 +907,9 @@ void mixture_handler::q_tree_optimal_redraw_opMP(){
         quad_tree_handler tree = quad_tree_handler(m_image, window_size, class_flag);
 
         #pragma omp for
-        for (int i = 0; i < amount_window_x; ++i) {
-            for (int j = 0; j < amount_window_y; ++j) {
-				//cout << i << " " << j << endl;
-                tree.set_probabilities(i, j);
+        for (int i = 0; i < amount_window_x*amount_window_y; ++i) {
+            
+                tree.set_probabilities(i/ amount_window_x, i%amount_window_x);
                 tree.bottom_up_pass();
                 tree.up_down_pass();
                 // возможно, на сюда придется секцию critical
@@ -918,8 +917,7 @@ void mixture_handler::q_tree_optimal_redraw_opMP(){
 				//{
 					tree.split_image_by_vote();
 				//}
-            }
-
+            
         }
     }
 
@@ -1618,7 +1616,7 @@ void mixture_handler::kolmogorov_optimal_redraw_opMP() {
 			int i, j;
 			for (i = x_c; i < x_c + x_l; ++i) {
 				for (j = y_c; j < y_c + y_l; ++j) {
-					image_one_mass[idx] = raw_image[i][j];
+					image_one_mass[idx] = raw_image[img_l_x*i +j];
 					idx++;
 				}
 			}
@@ -1675,7 +1673,7 @@ void mixture_handler::BIC() {
 		idx_i = i / img_l_y;
 		idx_j = i % img_l_y;
 		summ = 0;
-		pix_buf = raw_image[idx_i][idx_j];
+		pix_buf = raw_image[idx_i*img_l_x+idx_j];
 		for (j = 0; j < hyp_cl_amount; ++j)
 			summ += mix_weight[j] * (1 / (mix_scale[j] * sqrt(2 * pi)))*exp(-((pix_buf
 				- mix_shift[j])*(pix_buf - mix_shift[j])) / (2.0 * mix_scale[j] * mix_scale[j]));

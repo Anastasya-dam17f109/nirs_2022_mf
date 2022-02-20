@@ -131,9 +131,9 @@ void mix_img_obj::load_from_bitmap() {
 	for (i = 0; i < image_len_x; i++) 
 		for (j = 0; j < image_len_y; j++) 
             if(mixture_type == LOGNORMAL)
-                layer_mx_img[layer_amount-1][image_len_x - i - 1][j] = log(double(GetGValue(image.GetPixel(j, i))));
+                layer_mx_img[layer_idx[layer_amount - 1]+(image_len_x - i - 1)*image_len_x + j] = log(double(GetGValue(image.GetPixel(j, i))));
             else
-                layer_mx_img[layer_amount-1][image_len_x - i - 1][j] = log(double(GetGValue(image.GetPixel(j, i))));
+                layer_mx_img[layer_idx[layer_amount - 1] + (image_len_x - i - 1)*image_len_x + j] = log(double(GetGValue(image.GetPixel(j, i))));
 	image.Detach();
 	for (k = 0; k < class_amount; ++k) {
 		image.Load(class_list[k].c_str());
@@ -243,10 +243,10 @@ void mix_img_obj::img_generator() {
 	
 	for (i = 0; i < image_len_x; i++) {
 		for (j = 0; j < image_len_x; j++)
-			layer_mx_img[layer_amount - 1][i][j] = dist_gen_bcg();
+			layer_mx_img[layer_idx[layer_amount - 1] +i* image_len_x +j] = dist_gen_bcg();
 	}
 
-	sred = mean(layer_mx_img[layer_amount - 1]);
+	sred = mean(&layer_mx_img[layer_idx[layer_amount - 1]]);
 	bright_step = (255 - sred - 40) / class_amount;
 	amount_brigh_trg = amount_trg / class_amount;
 	if (amount_brigh_trg == 0)
@@ -299,7 +299,7 @@ void mix_img_obj::img_generator() {
 
 			for (k = 0; k < targ_size[j]; k++) {
 				for (l = 0; l < targ_size[j]; l++) 
-					layer_mx_img[layer_amount - 1][t_coord_x + k][t_coord_y + l] = dist_gen_trg(i);
+					layer_mx_img[layer_idx[layer_amount - 1] +(t_coord_x + k)*targ_size[j] + t_coord_y + l] = dist_gen_trg(i);
 			}
 		}
 	}
@@ -350,7 +350,7 @@ void  mix_img_obj::img_generator_from_file(string file_name) {
 	in.open(file_name);
 	for (i = 0; i < image_len_x; i++) {
 		for (j = 0; j < image_len_x; j++)
-			in>>layer_mx_img[layer_amount - 1][i][j] ;
+			in >> layer_mx_img[layer_idx[layer_amount - 1] + i* image_len_x + j] ;
 	}
 
 	in.close();
@@ -439,17 +439,15 @@ void  mix_img_obj::alloc_layer_mmr(){
 	}
 
 	layer_size = shared_ptr <int[]>(new int[layer_amount]);
-	layer_mx_img = new double**[layer_amount];
-		//shared_ptr<shared_ptr<shared_ptr<double[]>[]>[]>(new shared_ptr<shared_ptr<double[]>[]>[layer_amount]);
-
+	layer_idx  = shared_ptr <int[]>(new int[layer_amount]);
+	int summ_size = 0;
 	for (int i = 0; i < layer_amount; ++i) {
 		layer_size[i] = pow(2, i + 1);
-		layer_mx_img[i] = new double*[layer_size[i]];
-			//shared_ptr<shared_ptr<double[]>[]>(new shared_ptr<double[]>[layer_size[i]]);
-		for (int j = 0; j < layer_size[i]; j++)
-			layer_mx_img[i][j] = new double[layer_size[i]];
-			//shared_ptr<double[]>(new double[layer_size[i]]);
+		layer_idx[i] = summ_size;
+		summ_size += layer_size[i] * layer_size[i];
 	}
+	layer_mx_img = new double[summ_size];
+	
 }
 
 // заполнение промежуточных слоев квадродерева
@@ -459,8 +457,10 @@ void  mix_img_obj::img_accumulation() {
 	for (int i = layer_amount - 2; i > -1; i--) 
 		for (int k = 0; k < layer_size[i]; ++k) 
 			for (int l = 0; l < layer_size[i]; ++l) {
-				layer_mx_img[i][k][l] = (layer_mx_img[i + 1][2 * k][2 * l] + layer_mx_img[i + 1][2 * k + 1][2 * l]
-					+ layer_mx_img[ i + 1][2 * k][2 * l + 1] + layer_mx_img[i + 1][2 * k + 1][2 * l + 1]) / 4.0;
+				layer_mx_img[layer_idx[i]+ k* layer_size[i] +l] = (layer_mx_img[layer_idx[i+1] + 2*k * layer_size[i+1] + 2*l]
+					+ layer_mx_img[layer_idx[i + 1] + (2 * k+1) * layer_size[i + 1] + 2 * l]
+					+ layer_mx_img[layer_idx[i + 1] + 2 * k * layer_size[i + 1] + 2 * l+1]
+					+ layer_mx_img[layer_idx[i + 1] + (2 * k+1) * layer_size[i + 1] + 2 * l+1]) / 4.0;
 				//cout << k << " " << l << endl;
 			}
 }
@@ -472,7 +472,7 @@ void  mix_img_obj::print_results() {
 	out.open(filename_gen_image);
 	for (i = 0; i < image_len_x; i++) {
 		for (j = 0; j < image_len_y; j++)
-			out << layer_mx_img[layer_amount -1][i][j] << " ";
+			out << layer_mx_img[layer_idx[layer_amount - 1]+i* image_len_x +j] << " ";
 		out << std::endl;
 	}
 	out.close();
@@ -493,11 +493,11 @@ void  mix_img_obj::print_results() {
 
 //вычисление среднего арифметического
 
-int mix_img_obj::mean(double** data) {
+int mix_img_obj::mean(double* data) {
 	double result = 0;
 	for (int k = 0; k < image_len_x; k++) {
 		for (int l = 0; l < image_len_y; l++)
-			result += data[k][l];
+			result += data[k*image_len_x +l];
 	}
 	return int(result / (image_len_x*image_len_y));
 }

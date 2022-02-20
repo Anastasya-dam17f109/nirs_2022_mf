@@ -6,8 +6,10 @@ class initial_prob_img
 {
 	shared_ptr<mix_img_obj> m_image;
 	shared_ptr <int[]>      layer_size;
+	shared_ptr <int[]>      layer_idx;
+	shared_ptr <int[]>      init_layer_idx;
 	int layer_amount = 1;
-	double**** init_prob_img;
+	double* init_prob_img;
 	shared_ptr<double[]> mix_shift;
 	shared_ptr<double[]> mix_scale;
 	shared_ptr<double[]> cl_probs;
@@ -25,24 +27,15 @@ public:
 
 	int                     get_class_amount() { return class_amount; }
 	std::pair<int, int>     get_image_len() { return std::pair<int, int>(image_len_x, image_len_y); }
-	double****              get_image() { return init_prob_img;}
+	double*                 get_image() { return init_prob_img;}
 	shared_ptr<mix_img_obj> get_m_image(){return m_image; }
 	shared_ptr<double[]>    get_cl_probs() {return cl_probs;}
 	int                     get_layer_amount(){ return layer_amount; }
+	shared_ptr <int[]>      get_init_layer_idx (){return init_layer_idx;}
+	shared_ptr <int[]>      get_init_layer_size() { return layer_size; }
 	~initial_prob_img() {
-		//init_prob_img = new double ***[layer_amount];
-		for (int k = 0; k < layer_amount; ++k) {
-			//init_prob_img[k] = new double **[layer_size[k]];
-			for (int i = 0; i < layer_size[k]; i++) {
-				//init_prob_img[k][i] = new double *[layer_size[k]];
-				for (int j = 0; j < layer_size[k]; j++) {
-					delete[] init_prob_img[k][i][j];
-				}
-				delete[] init_prob_img[k][i];
-			}
-			delete[] init_prob_img[k];
-		}
-		delete init_prob_img;
+		
+		delete []init_prob_img;
 	};
 };
 

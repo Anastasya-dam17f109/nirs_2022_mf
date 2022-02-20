@@ -8,7 +8,7 @@
 class mixture_handler
 {
 	shared_ptr<initial_prob_img> m_image;
-	double** raw_image;
+	double* raw_image;
 	unsigned** class_flag;
 	shared_ptr<string[]> img_mask_list;
 

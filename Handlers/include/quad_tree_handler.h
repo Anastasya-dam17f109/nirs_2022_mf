@@ -7,36 +7,37 @@
 
 struct Node
 {
-	shared_ptr<Node> parent;
-	array<shared_ptr<Node>, 4> m_children;
+	Node* parent;
+	array<Node*, 4> m_children;
 	pair<int, int> l_corner;
 	
 
 	// для обработки как поля маркова 
-	shared_ptr<long double[]> p_xs_ys;
+	
 	unique_ptr<long double[]> p_xs_ds;
 	unique_ptr<unique_ptr<unique_ptr<long double[]>[]>[]> p_xs_cs_ds;
 	unique_ptr<unique_ptr<long double[]>[]> p_xs_Y;
-	bool isLeaf() const
-	{
-		return !static_cast<bool>(this->m_children[0]);
-	}
+	
 	
 };
 
 class quad_tree_handler
 {
 	shared_ptr<initial_prob_img> m_image;
-	double**** init_prob_img;
+	double* init_prob_img;
 
     unsigned ** class_flag;
     pair<int,int> l_coner;
 	shared_ptr<Node>  m_root;
 	unsigned layer_amount = 1;
 	const unsigned layer_ord_amount = 10;
-	shared_ptr<shared_ptr<shared_ptr<shared_ptr<Node>[]>[]>[]> layer;
+	Node* layer;
+	//shared_ptr<shared_ptr<shared_ptr<shared_ptr<Node>[]>[]>[]> layer;
 	shared_ptr <shared_ptr<shared_ptr<Basic_curve>[]>[]> layer_order;
 	shared_ptr <int[]>          layer_size;
+	shared_ptr <int[]>          layer_idx;
+	shared_ptr <int[]>          init_layer_size;
+	shared_ptr <int[]>          init_layer_idx;
 	shared_ptr<shared_ptr<double[]>[]> p_xs_xs1;
 	shared_ptr<shared_ptr<double[]>[]> p_xs_layer;
 	double theta = 0.7;
@@ -53,6 +54,7 @@ public:
     quad_tree_handler(shared_ptr<initial_prob_img> image, unsigned** cnt);
     quad_tree_handler(shared_ptr<initial_prob_img> image, int size, unsigned** cnt);
 	void build_quad_tree(shared_ptr<Node> elem, int n_layer);
+	void build_quad_tree();
     void set_dest_cnt(unsigned ** cl_fl_ptr, int size);
 	void set_probabilities(int i_idx, int j_idx);
 	void p_xs_matrix_generator();
@@ -64,7 +66,7 @@ public:
 	void create_splitted_img();
 	void draw_graphics();
     void clear_mem();
-    ~quad_tree_handler(){}
+	~quad_tree_handler() { delete[] layer; }
 
 };
 

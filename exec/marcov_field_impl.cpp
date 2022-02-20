@@ -25,8 +25,8 @@ int main() {
 	//initial_prob_img *img = new initial_prob_img(32, RAYLEIGH, 1, 2);
 	/*initial_prob_img *img = new initial_prob_img("D:\\generated_image.txt", 32, RAYLEIGH, 1, 2);*/
 	//initial_prob_img *img = new initial_prob_img("D:\\generated_image.txt", 32, NORMAL, 1, 2);
-	initial_prob_img *img = new initial_prob_img("C:\\Users\\anastasya\\Desktop\\data_FR.txt");
-	//initial_prob_img *img = new initial_prob_img("C:\\Users\\anastasya\\Desktop\\data_test.txt");
+	//initial_prob_img *img = new initial_prob_img("C:\\Users\\anastasya\\Desktop\\data_FR.txt");
+	initial_prob_img *img = new initial_prob_img("C:\\Users\\anastasya\\Desktop\\data_test.txt");
 	
 	shared_ptr<initial_prob_img> ptr_img(img);
 	//mixture_handler t(ptr_img->get_m_image(), 5, 0.001);
