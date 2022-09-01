@@ -16,7 +16,7 @@ mixture_handler::mixture_handler(shared_ptr < mix_img_obj> img, unsigned h_class
 	mix_scale    = img->get_scale();
 	gen_mix_filename = img->get_filename();
 	mix_weight   = shared_ptr<double[]>(new double[hyp_cl_amount]);
-	window_size  = 10;
+	window_size  = 16;
 	cout << " mix partition by " << h_classes << " components:" << endl;
 
 	mixture_inicalization();
@@ -24,6 +24,44 @@ mixture_handler::mixture_handler(shared_ptr < mix_img_obj> img, unsigned h_class
 	////detect_results();
 	////BIC();
 	
+}
+
+mixture_handler::mixture_handler(shared_ptr < mix_img_obj> img, unsigned h_classes, double acc, bool flag)
+{
+	accuracy = acc;
+	img_mask_list = img->get_mask_list();
+	hyp_cl_amount = img->get_class_amount();
+	//raw_image = img->get_raw_image();
+	//mixture_type = img->get_mixture_type();
+	img_l_x = img->get_image_len().first;
+	img_l_y = img->get_image_len().second;
+	//min_trg_size = img->get_min_targ_size();
+	//mix_shift = img->get_shift();
+	//mix_scale = img->get_scale();
+	gen_mix_filename = img->get_filename();
+	//mix_weight = shared_ptr<double[]>(new double[hyp_cl_amount]);
+	//window_size = 16;
+	//cout << " mix partition by " << h_classes << " components:" << endl;
+
+	mixture_inicalization();
+
+}
+
+void mixture_handler::get_classification_from_file(string filename)
+{
+	unsigned i, j;
+	ifstream load_classification;
+	load_classification.open(filename);
+	//load_classification >> files_amount;
+	// создаем массив-результат
+	//class_flag = new unsigned*[img_l_x];
+	for (i = 0; i < img_l_x; i++) {
+		//class_flag[i] = new unsigned[img_l_y];
+		for (j = 0; j < img_l_y; j++)
+			load_classification >> class_flag[i][j] ;
+	}
+	load_classification.close();
+
 }
 
 mixture_handler::mixture_handler(shared_ptr <initial_prob_img> img, unsigned h_classes, double acc) {
@@ -40,7 +78,7 @@ mixture_handler::mixture_handler(shared_ptr <initial_prob_img> img, unsigned h_c
 	mix_scale = img->get_m_image()->get_scale();
 	gen_mix_filename = img->get_m_image()->get_filename();
 	mix_weight = shared_ptr<double[]>(new double[hyp_cl_amount]);
-	window_size = 32;
+	window_size = 16;
 	cout << " mix partition by " << h_classes << " components:" << endl;
 
 	mixture_inicalization();
@@ -792,7 +830,7 @@ void mixture_handler::mixture_optimal_redraw_opMP_V2(){
 				cur_max = 0;
 				loc_u_new_n = y_l * x_l;
 
-				while (stop_flag && (itr < 1)) {
+				while (stop_flag && (itr < 500)) {
 					++itr;
 
 					for (l = ofset * u_new_n; l < ofset* u_new_n + loc_u_new_n; ++l) {
@@ -904,22 +942,23 @@ void mixture_handler::q_tree_optimal_redraw_opMP(){
     #pragma omp parallel
     {
        
-        quad_tree_handler tree = quad_tree_handler(m_image, window_size, class_flag);
+        quad_tree_handler tree = quad_tree_handler(m_image, window_size, class_flag,4);
 
         #pragma omp for
         for (int i = 0; i < amount_window_x*amount_window_y; ++i) {
             
                 tree.set_probabilities(i/ amount_window_x, i%amount_window_x);
                 tree.bottom_up_pass();
-                tree.up_down_pass();
+				tree.up_down_pass_V2();
+            // tree.up_down_pass();
                 // возможно, на сюда придется секцию critical
-//#pragma omp critical
-				//{
+#pragma omp critical
+				{
 					tree.split_image_by_vote();
-				//}
+				}
             
         }
-    }
+  }
 
     auto end1 = std::chrono::steady_clock::now();
     auto elapsed_ms1 = std::chrono::duration_cast<std::chrono::milliseconds>(end1 - begin1);
@@ -1716,7 +1755,9 @@ void mixture_handler::printInformation_to_image() {
 
 }
 
-void mixture_handler::detect_result_by_mask() {
+void mixture_handler::detect_result_by_mask(string filename) {
+	std::ofstream vmdelet_out;     //создаем поток 
+	vmdelet_out.open(filename, std::ios::app);
 	CImage mask_image;
 	double amount_cl_pix = 0;
 	unsigned curr_class;
@@ -1724,17 +1765,20 @@ void mixture_handler::detect_result_by_mask() {
 	int y_len, x_len, i, j, k;
 	cout << "percentage of correctly classified pixels:" << endl;
 	for (k = 0; k < hyp_cl_amount; ++k) {
-		if (img_mask_list[k] != "")
+		if (img_mask_list[k] != "\"\"")
 		{
 			mask_image.Load(img_mask_list[k].c_str());
 			amount_cl_pix = 0;
 			amount_true_pix = 0;
 			for (i = 0; i < img_l_x; i++) {
 				for (j = 0; j < img_l_y; j++) {
-					curr_class = (unsigned(GetBValue(mask_image.GetPixel(j, i))) / 255)*(k + 1);
+					curr_class = (unsigned(GetBValue(mask_image.GetPixel(j, i ))) / 255)*(k + 1);
 					if (curr_class != 0) {
 						amount_cl_pix++;
-						if (class_flag[img_l_x - i - 1][j] == curr_class)
+						//cout << i << " " << j << class_flag[img_l_x - i - 1][j] << curr_class + 1 << endl;
+						if (class_flag[img_l_x - i - 1][j] ==( curr_class+1))
+							//if (class_flag[i][j] ==( curr_class + 1))
+								//if (class_flag[j][i] == (curr_class + 1))
 							amount_true_pix++;
 					}
 
@@ -1742,8 +1786,14 @@ void mixture_handler::detect_result_by_mask() {
 			}
 			mask_image.Detach();
 			cout << "class " << k + 1 << ", "<< curr_class<< ": " << amount_true_pix / amount_cl_pix << endl;
+			
+			// открываем файл для записи 
+			
+			vmdelet_out << "class " << k + 1 << ", " << curr_class << ": " << amount_true_pix / amount_cl_pix << "\n"; // сама запись
+			
 		}	
 	}
+	vmdelet_out.close();   // закрываем файл
 }
 
 // вывод информации о полученном результате классификации
@@ -1751,7 +1801,7 @@ void mixture_handler::detect_result_by_mask() {
 void mixture_handler::printInformation() {
 	unsigned i, j;
 	cout << "finded model:" << "\n";
-	cout << " mixture components: " << hyp_cl_amount << "\n";
+	/*cout << " mixture components: " << hyp_cl_amount << "\n";
 	cout << "EM mix_shift values:" << "\n";
 	for (i = 0; i < hyp_cl_amount; i++)
 		cout << mix_shift[i] << "  ";
@@ -1760,7 +1810,7 @@ void mixture_handler::printInformation() {
 	cout << "EM mix_scale values:" << "\n";
 	for (i = 0; i < hyp_cl_amount; i++)
 		cout << mix_scale[i] << "  ";
-	cout << endl;
+	cout << endl;*/
 
 	out.open(split_mix_filename);
 	for (i = 0; i < img_l_x; i++) {

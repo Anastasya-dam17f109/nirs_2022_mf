@@ -1,6 +1,6 @@
 #pragma once
 #include "mix_img_obj.h"
-
+#include "omp.h"
 
 class initial_prob_img
 {
@@ -17,14 +17,18 @@ class initial_prob_img
 	unsigned image_len_y = 32;
 	unsigned class_amount = 1;
 
+	int init_window_size = 8;
+
+	bool genFlag = true;
 public:
 	initial_prob_img(int img_size, mix_type mix_t, int amount_targets, int classes);
 	initial_prob_img(string file_name, int img_size, mix_type mix_t, int amount_targets, int classes);
 	initial_prob_img(shared_ptr<mix_img_obj> image);
-	initial_prob_img(string filename);
+	initial_prob_img(string filename, bool flag);
 	void     alloc_layer_mmr();
 	void     generate_init_probs_mixtures();
-
+	void     generate_init_probs_mix_opMP_V2();
+	void     generate_init_probs_max_apost_opMP_V2();
 	int                     get_class_amount() { return class_amount; }
 	std::pair<int, int>     get_image_len() { return std::pair<int, int>(image_len_x, image_len_y); }
 	double*                 get_image() { return init_prob_img;}
