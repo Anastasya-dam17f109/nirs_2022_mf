@@ -1,8 +1,8 @@
 
-#include "mixture_handler.h"
+#include "optional_handler.h"
 
 
-mixture_handler::mixture_handler(shared_ptr < mix_img_obj> img, unsigned h_classes, double acc)
+void optional_handler::mixture_handler(shared_ptr < mix_img_obj> img, unsigned h_classes, double acc)
 {
 	accuracy      = acc;
 	img_mask_list = img->get_mask_list();
@@ -15,56 +15,30 @@ mixture_handler::mixture_handler(shared_ptr < mix_img_obj> img, unsigned h_class
 	mix_shift    = img->get_shift();
 	mix_scale    = img->get_scale();
 	gen_mix_filename = img->get_filename();
-	mix_weight   = shared_ptr<double[]>(new double[hyp_cl_amount]);
-	window_size  = 16;
+	mix_weight   = shared_ptr <double[]> (new double[hyp_cl_amount]);
+	window_size  = 13;
 	cout << " mix partition by " << h_classes << " components:" << endl;
-
-	mixture_inicalization();
+	res_memory_allocation();
 	
-	////detect_results();
-	////BIC();
+	mixture_optimal_redraw_opMP_V2();
+	//t.kolmogorov_optimal_redraw_opMP();
 	
 }
 
-mixture_handler::mixture_handler(shared_ptr < mix_img_obj> img, unsigned h_classes, double acc, bool flag)
+void optional_handler::network_results_handler(shared_ptr <mix_img_obj> img, unsigned h_classes, string classificationData)
 {
-	accuracy = acc;
 	img_mask_list = img->get_mask_list();
 	hyp_cl_amount = img->get_class_amount();
-	//raw_image = img->get_raw_image();
-	//mixture_type = img->get_mixture_type();
 	img_l_x = img->get_image_len().first;
 	img_l_y = img->get_image_len().second;
-	//min_trg_size = img->get_min_targ_size();
-	//mix_shift = img->get_shift();
-	//mix_scale = img->get_scale();
 	gen_mix_filename = img->get_filename();
-	//mix_weight = shared_ptr<double[]>(new double[hyp_cl_amount]);
-	//window_size = 16;
-	//cout << " mix partition by " << h_classes << " components:" << endl;
-
-	mixture_inicalization();
+	res_memory_allocation();
+	get_classification_from_file(classificationData);
 
 }
 
-void mixture_handler::get_classification_from_file(string filename)
-{
-	unsigned i, j;
-	ifstream load_classification;
-	load_classification.open(filename);
-	//load_classification >> files_amount;
-	// создаем массив-результат
-	//class_flag = new unsigned*[img_l_x];
-	for (i = 0; i < img_l_x; i++) {
-		//class_flag[i] = new unsigned[img_l_y];
-		for (j = 0; j < img_l_y; j++)
-			load_classification >> class_flag[i][j] ;
-	}
-	load_classification.close();
 
-}
-
-mixture_handler::mixture_handler(shared_ptr <initial_prob_img> img, unsigned h_classes, double acc) {
+void optional_handler::quadtree_handler(shared_ptr <initial_prob_img> img, unsigned h_classes, double acc) {
 	accuracy = acc;
 	m_image = img;
 	img_mask_list = img->get_m_image()->get_mask_list();
@@ -79,18 +53,33 @@ mixture_handler::mixture_handler(shared_ptr <initial_prob_img> img, unsigned h_c
 	gen_mix_filename = img->get_m_image()->get_filename();
 	mix_weight = shared_ptr<double[]>(new double[hyp_cl_amount]);
 	window_size = 16;
-	cout << " mix partition by " << h_classes << " components:" << endl;
+	
+	res_memory_allocation();
+	q_tree_optimal_redraw_opMP();
 
-	mixture_inicalization();
+}
 
+// выгрузка результатов классификации из файла
+
+void optional_handler::get_classification_from_file(string classificationData)
+{
+	unsigned i, j;
+	ifstream load_classification;
+	load_classification.open(classificationData);
+
+	for (i = 0; i < img_l_x; i++)
+		for (j = 0; j < img_l_y; j++)
+			load_classification >> class_flag[i][j];
+	
+	load_classification.close();
 }
 
 //выделение памяти под изображение-результат
 
-void mixture_handler::mixture_inicalization() {
+void optional_handler::res_memory_allocation() {
 	unsigned i, j;
 	// создаем массив-результат
-	class_flag = new unsigned*[img_l_x];
+	class_flag = new unsigned * [img_l_x];
 	for (i = 0; i < img_l_x; i++) {
 		class_flag[i] = new unsigned[img_l_y];
 		for (j = 0; j < img_l_y; j++)
@@ -98,677 +87,19 @@ void mixture_handler::mixture_inicalization() {
 	}
 }
 
-////
-//
-//void mixture_handler::SEMalgorithm_opMP_rayleigh_spec() {
-//	int h_w = (window_size / 2);
-//	int amount_window = img_l_x / h_w - 1;
-//	re_comp_shifts = new long double*[amount_window*amount_window];
-//	re_comp_scales = new long double*[amount_window*amount_window];
-//	bool     stop_flag = true;
-//
-//	int i_new_n = window_size * window_size;
-//	int i_n_add = img_l_x - (img_l_x / h_w)* h_w;
-//	int est_amount = 2;
-//	unsigned i, t, r;
-//	double        cur_max = 0;
-//	const double  sq_pi = sqrt(2 * pi);
-//	double        min_p = double(min_trg_size* min_trg_size) / double(window_size * window_size);
-//
-//	int x_min, y_min, i_lim, i_step, itr, horiz, vert, j;
-//	int u_new_n = 0;
-//	u_new_n = window_size * window_size;
-//	horiz = window_size;
-//	vert = window_size;
-//	double d_u_new_n = double(u_new_n);
-//
-//	for (i = 0; i < amount_window*amount_window; ++i) {
-//		re_comp_shifts[i] = new long double[hyp_cl_amount];
-//		re_comp_scales[i] = new long double[hyp_cl_amount];
-//		for (t = 0; t < hyp_cl_amount; ++t) {
-//			re_comp_shifts[i][t] = 0;
-//			re_comp_scales[i][t] = 0;
-//		}
-//	}
-//
-//
-//	double   max_buf = 0;
-//	double bic_value = 0;
-//	double pre_bic_value = 0;
-//	int pre_amount = 1;
-//	auto begin1 = std::chrono::steady_clock::now();
-//
-//	double** new_g_ij = new double*[(window_size + i_n_add)*(window_size + i_n_add)];
-//	double** new_g_ij_0 = new double*[(window_size + i_n_add)*(window_size + i_n_add)];
-//	double**    y_i_j = new double*[(window_size + i_n_add)*(window_size + i_n_add)];
-//
-//	double * new_weights_mean = new  double[hyp_cl_amount];
-//
-//	double ** new_shifts = new double*[est_amount];
-//	double ** new_scales = new double*[est_amount];
-//
-//	for (j = 0; j < est_amount; ++j) {
-//		new_shifts[j] = new  double[hyp_cl_amount];
-//		new_scales[j] = new  double[hyp_cl_amount];
-//	}
-//
-//
-//	double** new_med_sample = new double*[hyp_cl_amount];
-//
-//	double * pre_new_weights = new double[hyp_cl_amount];
-//	double * pre_new_shifts = new double[hyp_cl_amount];
-//	double * pre_new_scales = new double[hyp_cl_amount];
-//
-//	double * max_L_mass = new  double[est_amount];
-//
-//	for (j = 0; j < hyp_cl_amount; ++j) {
-//		pre_new_weights[j] = 0;
-//		pre_new_shifts[j] = 0;
-//		pre_new_scales[j] = 0;
-//		new_med_sample[j] = new double[(window_size + i_n_add)*(window_size + i_n_add)];
-//
-//		new_weights_mean[j] = 0;
-//
-//		for (int l = 0; l < est_amount; l++) {
-//			new_shifts[l][j] = 0;
-//			new_scales[l][j] = 0;
-//			max_L_mass[l] = 0;
-//		}
-//	}
-//
-//	double val1, psumm1;
-//	boost::random::uniform_01 <> dist_poly1;
-//	boost::random::mt19937 generator1{ static_cast<std::uint32_t>(time(0)) };
-//	for (j = 0; j < (window_size + i_n_add)*(window_size + i_n_add); ++j) {
-//		new_g_ij[j] = new double[hyp_cl_amount];
-//		new_g_ij_0[j] = new double[hyp_cl_amount];
-//		y_i_j[j] = new double[hyp_cl_amount];
-//	}
-//	bool* med_flag = new bool[est_amount];
-//	med_flag[0] = true;
-//	for (int r = 0; r < amount_window; ++r) {
-//		x_min = r * h_w;
-//		for (j = 0; j < amount_window; ++j) {
-//			y_min = j * h_w;
-//			for (int itr_cl_am = 1; itr_cl_am <= hyp_cl_amount; ++itr_cl_am) {
-//				stop_flag = true;
-//				itr = 0;
-//				/*for (int l = 0; l < (window_size + i_n_add)*(window_size + i_n_add); ++l) {
-//					psumm1 = 0;
-//					for (int t = 0; t < itr_cl_am; t++) {
-//						val1 = dist_poly1(generator1);
-//						psumm1 += val1;
-//						new_g_ij[l][t] = val1;
-//						new_g_ij_0[l][t] = 0;
-//					}
-//					for (int t = 0; t < itr_cl_am; t++)
-//						new_g_ij[l][t] = new_g_ij[l][t] / psumm1;
-//				}
-//*/
-//#pragma omp parallel 
-//				{
-//					double val, psumm;
-//					int l;
-//					int u_new_n = window_size * window_size;
-//					int loc_hyp_cl_amount = itr_cl_am;
-//					boost::random::uniform_01 <> dist_poly;
-//					boost::random::mt19937 generator{ static_cast<std::uint32_t>(time(0)) };
-//#pragma omp for
-//					for (int t = 0; t < u_new_n; ++t) {
-//						psumm = 0;
-//						for (l = 0; l < loc_hyp_cl_amount; ++l) {
-//							val = dist_poly(generator);
-//							psumm += val;
-//							new_g_ij[t][l] = val;
-//							new_g_ij_0[t][l] = 0;
-//						}
-//
-//						for (l = 0; l < loc_hyp_cl_amount; ++l)
-//							new_g_ij[t][l] = new_g_ij[t][l] / psumm;
-//					}
-//				}
-//				/*
-//					if (r != amount_window - 1)
-//						horiz = window_size;
-//					else
-//						horiz = window_size + i_n_add;
-//					if (j != amount_window - 1)
-//						vert = window_size;
-//					else
-//						vert = (window_size + i_n_add);
-//					u_new_n = horiz * vert;
-//				*/
-//
-//				while (stop_flag &&  itr < 300) {
-//					++itr;
-//					cur_max = 0;
-//#pragma omp parallel 
-//					{
-//						int loc_hyp_cl_amount = itr_cl_am;
-//						string mixture_type = mixture_type;
-//						int u_new_n = window_size * window_size;
-//						int t;
-//						int loc_horiz = horiz;
-//						int loc_x_min = x_min;
-//						int loc_y_min = y_min;
-//						double bound_d, bound_u, psumm, val, pix_buf;
-//						boost::random::uniform_01 <> dist_poly;
-//						boost::random::mt19937 generator{ static_cast<std::uint32_t>(time(0)) };
-//#pragma omp for  
-//						for (int l = 0; l < u_new_n; ++l) {
-//							pix_buf = my_picture[loc_x_min + l / loc_horiz][loc_y_min + l % loc_horiz];
-//							bound_d = 0;
-//							bound_u = new_g_ij[l][0];
-//							val = dist_poly(generator);
-//							for (t = 0; t < loc_hyp_cl_amount; ++t) {
-//								if ((val < bound_u)
-//									&& (val >= bound_d)) {
-//									y_i_j[l][t] = 1;
-//# pragma omp critical
-//									{
-//										new_med_sample[t][int(new_weights_mean[t])] = pix_buf;
-//										++new_weights_mean[t];
-//										new_scales[0][t] += pix_buf * pix_buf;
-//										
-//									}
-//
-//								}
-//								else
-//									y_i_j[l][t] = 0;
-//								bound_d += new_g_ij[l][t];
-//								if (t < loc_hyp_cl_amount - 2)
-//									bound_u += new_g_ij[l][t + 1];
-//								else
-//									if (t == loc_hyp_cl_amount - 2)
-//										bound_u = 1;
-//							}
-//						}
-//					}
-//
-//
-//					med_flag[1] = true;
-//					for (int l = 0; l < itr_cl_am; ++l) {
-//							new_shifts[0][l] = 0;
-//							new_shifts[1][l] = 0;
-//							new_scales[0][l] = sqrt(new_scales[0][l] / double(2 * new_weights_mean[l]));
-//
-//							new_scales[1][l] = find_med(new_med_sample[l], new_weights_mean[l]) / sqrt(log(4.0));
-//							if (new_scales[1][l] < 0)
-//								med_flag[1] = false;
-//					}
-//#pragma omp parallel 
-//					{
-//						
-//						double   pix_buf = 0; int l;
-//						int loc_horiz = horiz;
-//						int loc_x_min = x_min;
-//						int loc_y_min = y_min;
-//						int loc_hyp_cl_amount = itr_cl_am;
-//						int u_new_n = window_size * window_size;
-//						double d_u_new_n = double(u_new_n);
-//
-//#pragma omp for  
-//						for (int t = 0; t < u_new_n; ++t) {
-//							pix_buf = my_picture[loc_x_min + t / loc_horiz][loc_y_min + t % loc_horiz];
-//							for (l = 0; l < loc_hyp_cl_amount; ++l) {
-//
-//# pragma omp critical
-//								{
-//									
-//									if (cur_max < abs(new_g_ij[t][l] - new_g_ij_0[t][l]))
-//										cur_max = abs(new_g_ij[t][l] - new_g_ij_0[t][l]);
-//								}
-//								new_g_ij_0[t][l] = new_g_ij[t][l];
-//							}
-//						}
-//					}
-//
-//
-//					for (int l = 0; l < itr_cl_am; ++l) {
-//						
-//						new_weights_mean[l] = new_weights_mean[l] / d_u_new_n;
-//					}
-//#pragma omp parallel
-//					{
-//
-//						double B, pix_buf;
-//						
-//						bool pre_flag = true;
-//						bool flag = false;
-//						int l, t;
-//						int u_new_n = window_size * window_size;
-//						int loc_x_min = x_min;
-//						int loc_y_min = y_min;
-//						int loc_est_amount = est_amount;
-//						int loc_horiz = horiz;
-//						int loc_itr_cl_am = itr_cl_am;
-//						double d_u_new_n = double(u_new_n);
-//#pragma omp for
-//						for (int m = 0; m < u_new_n; m++) {
-//							pix_buf = my_picture[loc_x_min + m / loc_horiz][loc_y_min + m % loc_horiz];
-//							flag = false;
-//							for (l = 0; l < loc_est_amount; ++l) {
-//								B = 0;
-//								for (t = 0; t < loc_itr_cl_am; ++t) {
-//									if (((new_scales[l][t] != 0) && (new_weights_mean[t] != 0)) && (med_flag[l])) {
-//											B += new_weights_mean[t] * (pix_buf / (new_scales[l][t] * new_scales[l][t]))*
-//											exp(-(pow(pix_buf, 2)) /
-//											(2.0 * new_scales[l][t] * new_scales[l][t]));
-//									}
-//									else {
-//										flag = true;
-//										break;
-//									}
-//								}
-//#pragma omp critical
-//								if (B > 0)
-//									max_L_mass[l] += log(B / (d_u_new_n));
-//								else
-//									max_L_mass[l] += 0;
-//							}
-//						}
-//
-//					}
-//
-//					int max_idx = 0;
-//
-//					for (int m = 0; m < est_amount; ++m) {
-//						//cout << m << " " << max_L_mass[m] << endl;
-//						if ((max_L_mass[max_idx] < max_L_mass[m]) && ((med_flag[m])))
-//							max_idx = m;
-//					}
-//
-//					for (int m = 0; m < itr_cl_am; ++m) {
-//						new_shifts[0][m] = new_shifts[max_idx][m];
-//						new_scales[0][m] = new_scales[max_idx][m];
-//					}
-//					//cout << "max_idx " << max_idx<<" "<< new_shifts[1][0]<<" "<< new_scales[1][0]<< " " << new_shifts[1][1] << " " << new_scales[1][1] << " "<< med_flag[1]<<endl;
-//					//cout << "max_idx_t "  << " " << new_shifts[0][0] << " " << new_scales[0][0] << " " << new_shifts[0][1] << " " << new_scales[0][1] << " " << med_flag[1] << endl;
-//#pragma omp parallel 
-//					{
-//						double   pix_buf = 0;
-//						double summ;
-//						int l;
-//					
-//						int loc_horiz = horiz;
-//						int loc_x_min = x_min;
-//						int loc_y_min = y_min;
-//						int loc_hyp_cl_amount = itr_cl_am;
-//						int u_new_n = window_size * window_size;
-//						double d_u_new_n = double(u_new_n);
-//#pragma omp for  
-//						for (int t = 0; t < u_new_n; ++t) {
-//							pix_buf = my_picture[loc_x_min + t / loc_horiz][loc_y_min + t % loc_horiz];
-//							summ = 0;
-//							for (l = 0; l < loc_hyp_cl_amount; ++l) {
-//								if ((new_weights_mean[l] >= 0)
-//									&& (new_scales[0][l] > 0)) {
-//									
-//											summ += new_weights_mean[l] * (pix_buf / (new_scales[0][l] * new_scales[0][l]))*exp(-((pix_buf
-//												)*(pix_buf)) / (2.0 * new_scales[0][l] * new_scales[0][l]));
-//									
-//								}
-//
-//							}
-//							for (l = 0; l < loc_hyp_cl_amount; ++l)
-//								if ((new_weights_mean[l] >= 0)
-//									&& (new_scales[0][l] > 0))
-//									
-//											new_g_ij[t][l] = new_weights_mean[l] * (pix_buf / (new_scales[0][l] * new_scales[0][l]* summ))*exp(-(pix_buf
-//												*pix_buf) / (2.0 * new_scales[0][l] * new_scales[0][l]));
-//									
-//								else
-//									new_g_ij[t][l] = 0;
-//
-//						}
-//					}
-//
-//					if (stop_flag) {
-//						if (cur_max < accuracy)
-//							stop_flag = false;
-//						else {
-//							cur_max = 0;
-//							for (int l = 0; l < itr_cl_am; ++l) {
-//								new_weights_mean[l] = 0;
-//								for (int t = 0; t < est_amount; ++t) {
-//									new_shifts[t][l] = 0;
-//									new_scales[t][l] = 0;
-//									max_L_mass[t] = 0;
-//								}
-//							}
-//						}
-//					}
-//
-//				}
-//
-//				for (int l = 0; l < itr_cl_am; ++l) {
-//					new_weights_mean[l] = 0;
-//					//cout<<"dd "<< new_shifts[0][l]<< " "<<new_scales[0][l] <<endl;
-//				}
-//#pragma omp parallel 
-//				{
-//					double buf_max = 0;
-//					int      idx_max = 0;
-//					double val, psumm;
-//					int l;
-//					int loc_hyp_cl_amount = itr_cl_am;
-//					boost::random::uniform_01 <> dist_poly;
-//					int u_new_n = window_size * window_size;
-//					boost::random::mt19937 generator{ static_cast<std::uint32_t>(time(0)) };
-//#pragma omp for
-//					for (int t = 0; t < u_new_n; ++t) {
-//
-//						buf_max = new_g_ij[t][0];
-//						idx_max = 0;
-//						psumm = 0;
-//						for (l = 0; l < loc_hyp_cl_amount; ++l) {
-//							if (buf_max < new_g_ij[t][l]) {
-//								buf_max = new_g_ij[t][l];
-//								idx_max = l;
-//							}
-//							new_g_ij_0[t][l] = 0;
-//							val = dist_poly(generator);
-//							psumm += val;
-//							new_g_ij[t][l] = val;
-//							new_g_ij_0[t][l] = 0;
-//						}
-//#pragma omp critical
-//						++new_weights_mean[idx_max];
-//						for (l = 0; l < loc_hyp_cl_amount; ++l)
-//							new_g_ij[t][l] = new_g_ij[t][l] / psumm;
-//						//new_g_ij[t][l] = 1.0 / double(k);
-//
-//					}
-//				}
-//				double big_summ = 0;
-//#pragma omp parallel
-//				{
-//					string mixture_type = mixture_type;
-//					double pix_buf, summ;
-//					int t; int loc_horiz = horiz;
-//					int loc_x_min = x_min;
-//					int loc_y_min = y_min;
-//#pragma omp for
-//					for (int l = 0; l < u_new_n; ++l) {
-//						summ = 0;
-//						pix_buf = my_picture[loc_x_min + l / loc_horiz][loc_y_min + l % loc_horiz];
-//						for (t = 0; t < itr_cl_am; ++t)
-//							
-//									summ += new_weights_mean[t] * (pix_buf / (new_scales[0][t] * new_scales[0][t]))*exp(-((pix_buf
-//										)*(pix_buf)) / (2.0 * new_scales[0][t] * new_scales[0][t]));
-//							
-//# pragma omp critical
-//						big_summ += log(summ);
-//					}
-//
-//				}
-//				bic_value = 2 * big_summ - log(u_new_n)*(2 * itr_cl_am - 1);
-//
-//				if (itr_cl_am == 1) {
-//					pre_bic_value = bic_value;
-//					pre_amount = 1;
-//					for (int l = 0; l < itr_cl_am; ++l) {
-//						pre_new_weights[l] = new_weights_mean[l];
-//						pre_new_shifts[l] = new_shifts[0][l];
-//						pre_new_scales[l] = new_scales[0][l];
-//					}
-//				}
-//				else {
-//					if (bic_value > pre_bic_value) {
-//						pre_bic_value = bic_value;
-//						pre_amount = itr_cl_am;
-//						for (int l = 0; l < itr_cl_am; ++l) {
-//							pre_new_weights[l] = new_weights_mean[l];
-//							pre_new_shifts[l] = new_shifts[0][l];
-//							pre_new_scales[l] = new_scales[0][l];
-//						}
-//					}
-//				}
-//				for (int l = 0; l < itr_cl_am; ++l) {
-//
-//					new_weights_mean[l] = 0;
-//					for (int t = 0; t < est_amount; ++t) {
-//						new_shifts[t][l] = 0;
-//						new_scales[t][l] = 0;
-//					}
-//				}
-//
-//			}
-//			//cout << r << " " << j << " " << pre_amount<<endl;
-//			for (int l = 0; l < pre_amount; ++l) {
-//				//if(pre_amount==2)
-//				//cout <<"pre_new_scales[l] "<< pre_new_scales[l] << endl;
-//				if ((pre_new_weights[l] / d_u_new_n > min_p)
-//					&& (pre_new_scales[l] > 0)) {
-//
-//					re_comp_shifts[r *  amount_window + j][l] = pre_new_scales[l];
-//					re_comp_scales[r * amount_window + j][l] = pre_new_scales[l];
-//				}
-//				pre_new_weights[l] = 0;
-//				pre_new_shifts[l] = 0;
-//				pre_new_scales[l] = 0;
-//			}
-//		}
-//	}
-//
-//	auto end1 = std::chrono::steady_clock::now();
-//	auto elapsed_ms1 = std::chrono::duration_cast<std::chrono::milliseconds>(end1 - begin1);
-//	cout << "elapsed_ms1  " << elapsed_ms1.count() << "\n";
-//	for (int t = 0; t < (window_size + i_n_add)*(window_size + i_n_add); ++t) {
-//		delete[] new_g_ij[t];
-//		delete[] y_i_j[t];
-//		delete[] new_g_ij_0[t];
-//	}
-//
-//	delete[] new_g_ij;
-//	delete[] y_i_j;
-//	delete[] new_g_ij_0;
-//	delete[] med_flag;
-//	delete[] new_weights_mean;
-//	delete[] pre_new_weights;
-//	delete[] pre_new_shifts;
-//	delete[] pre_new_scales;
-//	delete[] max_L_mass;
-//
-//	for (j = 0; j < est_amount; ++j) {
-//		delete[] new_shifts[j];
-//		delete[] new_scales[j];
-//	}
-//	delete[] new_shifts;
-//	delete[] new_scales;
-//
-//	for (j = 0; j < hyp_cl_amount; ++j) {
-//		delete[] new_med_sample[j];
-//
-//	}
-//	delete[] new_med_sample;
-//
-//}
-
 //раскраска картики - em алгоритм , openMP version
 // иначе - разделение картинки сеточным методом разделения смесей 
 
-void mixture_handler::mixture_optimal_redraw_opMP() {
-
-	int add_amount_x = img_l_x% window_size;
-	int add_amount_y = img_l_y % window_size;
-	int amount_window_x = img_l_x / window_size ;
-	int amount_window_y = img_l_y / window_size;
-	unsigned u_new_n = (window_size + add_amount_x) *(window_size + add_amount_y);
-
-	
-	auto begin1 = std::chrono::steady_clock::now();
-	#pragma omp parallel
-	{
-		int loc_window_size = window_size;
-		int loc_hyp_cl_amount = hyp_cl_amount;
-		int x_l = loc_window_size;
-		int y_l = loc_window_size;
-
-		int itr, x_min, y_min, j, loc_u_new_n, t, l;
-		double** new_g_ij = new double*[u_new_n];
-		double** new_g_ij_0 = new double*[u_new_n];
-		double * new_weights = new  double[loc_hyp_cl_amount];
-		double * new_shifts = new  double[loc_hyp_cl_amount];
-		double * new_scales = new  double[loc_hyp_cl_amount];
-		double * buf_new_weights = new  double[loc_hyp_cl_amount];
-		
-		for (l = 0; l < u_new_n; ++l) {
-			new_g_ij[l] = new double[loc_hyp_cl_amount];
-			new_g_ij_0[l] = new double[loc_hyp_cl_amount];
-			for (t = 0; t < loc_hyp_cl_amount; t++) {
-				new_g_ij[l][t] = 0;
-				new_g_ij_0[l][t] = 0;
-			}
-		}
-		for (l = 0; l < loc_hyp_cl_amount; ++l) {
-			new_weights[l] = 1.0 / double(loc_hyp_cl_amount);
-			new_shifts[l] = mix_shift[l];
-			new_scales[l] = mix_scale[l];
-		}
-		
-		double summ = 0;
-		const double sq_pi = sqrt(2 * pi);
-		double pix_buf,cur_max;
-		double last_cur_max = 0;
-
-		double buf_max = 0;
-		bool stop_flag = true;
-		unsigned idx_max = 0;
-		#pragma omp for
-		for (int r = 0; r < amount_window_x; ++r) {
-			x_min = r * loc_window_size;
-			if (r < amount_window_x - 1)
-				x_l = loc_window_size;
-			else
-				x_l = loc_window_size + add_amount_x;
-			for (j = 0; j < amount_window_y; ++j) {
-
-				y_min = j * loc_window_size;
-				if (j < amount_window_y - 1)
-					y_l = loc_window_size;
-				else
-					y_l = loc_window_size + add_amount_y;
-				
-
-				itr = 0;
-				stop_flag = true;
-				cur_max = 0;
-				loc_u_new_n = y_l * x_l;
-				
-				while (stop_flag && (itr < 500)) {
-					++itr;
-					
-					for (l = 0; l < loc_u_new_n; ++l) {
-						summ = 0;
-						pix_buf = raw_image[(x_min + l / y_l)*img_l_x + y_min + l % y_l];
-						for (t = 0; t < loc_hyp_cl_amount; ++t) {
-						//if (mixture_type == "normal")
-							//summ += sum_func(mix_shift[t], mix_scale[t], new_weights[t], pix_buf);
-							//cout << sum_func(mix_shift[t], mix_scale[t], new_weights[t], pix_buf)<< endl;
-								/*summ += new_weights[t] * (1 / (mix_scale[t] * sq_pi))*exp(-((pix_buf
-									- mix_shift[t])*(pix_buf - mix_shift[t])) / (2.0 * mix_scale[t] * mix_scale[t]));*/
-							/*else {
-								if (mixture_type == "rayleigh")*/
-									/*summ += new_weights[t] * (pix_buf / (mix_scale[t] * mix_scale[t]))*exp(-((pix_buf
-										)*(pix_buf )) / (2.0 * mix_scale[t] * mix_scale[t]));*/
-							/*}*/
-							//else {
-							//if (mixture_type == "lognormal")
-								summ += new_weights[t] * (1 / (mix_scale[t] * sq_pi*pix_buf))*exp(-((log(pix_buf)
-									- mix_shift[t])*(log(pix_buf) - mix_shift[t])) / (2.0 * mix_scale[t] * mix_scale[t]));
-						//}
-
-						}
-
-						for (t = 0; t < loc_hyp_cl_amount; ++t) {
-								if (l == 0)
-									buf_new_weights[t] = 0;
-								//if (mixture_type == "normal")
-									/*new_g_ij[l][t] = new_weights[t] * (1 / (mix_scale[t] * sq_pi*summ))*exp(-((pix_buf
-										- mix_shift[t])*(pix_buf - mix_shift[t])) / (2.0 * mix_scale[t] * mix_scale[t]));*/
-								//new_g_ij[l][t] = sum_func(mix_shift[t], mix_scale[t], new_weights[t], pix_buf) / summ; 
-								/*else {
-									if (mixture_type == "rayleigh")*/
-										/*new_g_ij[l][t] = new_weights[t] * (pix_buf / (mix_scale[t] * mix_scale[t]))*exp(-(pix_buf
-											*pix_buf) / (2.0 * mix_scale[t] * mix_scale[t]));*/
-								/*}*/
-								///else {
-								//if (mixture_type == "lognormal")
-									new_g_ij[l][t] = new_weights[t] * (1 / (mix_scale[t] * sq_pi*summ*pix_buf))*exp(-((log(pix_buf)
-										- mix_shift[t])*(log(pix_buf) - mix_shift[t])) / (2.0 * mix_scale[t] * mix_scale[t]));
-								//}
-								buf_new_weights[t] += new_g_ij[l][t];
-								if (l == loc_u_new_n - 1)
-									new_weights[t] = buf_new_weights[t] / double(loc_u_new_n);
-								if (cur_max < abs(new_g_ij[l][t] - new_g_ij_0[l][t]))
-									cur_max = abs(new_g_ij[l][t] - new_g_ij_0[l][t]);
-								new_g_ij_0[l][t] = new_g_ij[l][t];
-							}
-						
-					}
-					
-					if (stop_flag) {
-						if (cur_max != 0)
-							last_cur_max = cur_max;
-						(cur_max < accuracy) ? stop_flag = false : cur_max = 0;
-					}
-				}
-				#pragma omp critical
-				{
-					//cout << "jjjjj" << endl;
-
-					for (t = 0; t < loc_u_new_n; ++t) {
-						buf_max = new_g_ij[t][0];
-						idx_max = 0;
-						for (l = 0; l < loc_hyp_cl_amount; ++l) {
-							if (t == 0)
-								//new_weights[l] = mix_prob[l];
-								new_weights[l] = 1.0 / double(loc_hyp_cl_amount);
-							if (buf_max < new_g_ij[t][l]) {
-								buf_max = new_g_ij[t][l];
-								idx_max = l;
-							}
-							new_g_ij_0[t][l] = 0;
-						}
-						class_flag[x_min + t / y_l][y_min + t % y_l] = idx_max + 1;
-					}
-
-
-				}
-			}
-
-		}
-
-		for (t = 0; t < u_new_n; ++t) {
-			delete[] new_g_ij[t];
-			delete[] new_g_ij_0[t];
-		}
-		delete[] new_g_ij;
-		delete[] new_g_ij_0;
-		delete[] new_weights;
-		delete[] buf_new_weights;
-		delete[] new_shifts;
-		delete[] new_scales;
-	}
-	
-	auto end1 = std::chrono::steady_clock::now();
-	auto elapsed_ms1 = std::chrono::duration_cast<std::chrono::milliseconds>(end1 - begin1);
-	cout << "elapsed_ms1  " << elapsed_ms1.count() <<endl;
-}
-
-// попытка оптимизировать верхнюю функцию
-
-void mixture_handler::mixture_optimal_redraw_opMP_V2(){
+void optional_handler::mixture_optimal_redraw_opMP_V2(){
 
 	int add_amount_x = img_l_x % window_size;
 	int add_amount_y = img_l_y % window_size;
 	int amount_window_x = img_l_x / window_size;
 	int amount_window_y = img_l_y / window_size;
-	int u_new_n = (window_size + add_amount_x) *(window_size + add_amount_y);
+	int u_new_n = (window_size + add_amount_x) * (window_size + add_amount_y);
 	int thr_nmb = 4;
-	double** new_g_ij = new double*[u_new_n *thr_nmb];
-	double** new_g_ij_0 = new double*[u_new_n * thr_nmb];
+	double** new_g_ij = new double * [u_new_n * thr_nmb];
+	double** new_g_ij_0 = new double * [u_new_n * thr_nmb];
 	cout << omp_get_num_threads() << endl;
 	for (int l = 0; l < u_new_n * thr_nmb; ++l) {
 		new_g_ij[l] = new double[hyp_cl_amount];
@@ -781,18 +112,18 @@ void mixture_handler::mixture_optimal_redraw_opMP_V2(){
 	auto begin1 = std::chrono::steady_clock::now();
 #pragma omp parallel
 	{
-		int loc_window_size = window_size;
-		int loc_hyp_cl_amount = hyp_cl_amount;
-		int x_l = loc_window_size;
-		int y_l = loc_window_size;
-		int ofset = omp_get_thread_num();
-		//cout << "ofset  " << ofset << endl;
-		int itr, x_min, y_min, j, loc_u_new_n, t, l;
+		int loc_window_size = window_size, loc_hyp_cl_amount = hyp_cl_amount, x_l = loc_window_size, y_l = loc_window_size;
+		int itr, x_min, y_min, j, loc_u_new_n, t, l, ofset = omp_get_thread_num();
+		const double sq_pi = sqrt(2 * pi);
+		double pix_buf, cur_max, summ = 0, last_cur_max = 0, buf_max = 0;
 
-		double * new_weights = new  double[loc_hyp_cl_amount];
-		double * new_shifts = new  double[loc_hyp_cl_amount];
-		double * new_scales = new  double[loc_hyp_cl_amount];
-		double * buf_new_weights = new  double[loc_hyp_cl_amount];
+		bool stop_flag = true;
+		unsigned idx_max = 0;
+		
+		double * new_weights = new double[loc_hyp_cl_amount];
+		double * new_shifts = new double[loc_hyp_cl_amount];
+		double * new_scales = new double[loc_hyp_cl_amount];
+		double * buf_new_weights = new double[loc_hyp_cl_amount];
 
 
 		for (l = 0; l < loc_hyp_cl_amount; ++l) {
@@ -801,14 +132,7 @@ void mixture_handler::mixture_optimal_redraw_opMP_V2(){
 			new_scales[l] = mix_scale[l];
 		}
 
-		double summ = 0;
-		const double sq_pi = sqrt(2 * pi);
-		double pix_buf, cur_max;
-		double last_cur_max = 0;
-
-		double buf_max = 0;
-		bool stop_flag = true;
-		unsigned idx_max = 0;
+		
 #pragma omp for
 		for (int r = 0; r < amount_window_x; ++r) {
 			x_min = r * loc_window_size;
@@ -893,8 +217,6 @@ void mixture_handler::mixture_optimal_redraw_opMP_V2(){
 				}
 #pragma omp critical
 				{
-					//cout << "jjjjj" << endl;
-
 					for (t = ofset * u_new_n; t < ofset * u_new_n + loc_u_new_n; ++t) {
 						buf_max = new_g_ij[t][0];
 						idx_max = 0;
@@ -932,16 +254,12 @@ void mixture_handler::mixture_optimal_redraw_opMP_V2(){
 //раскраска картики - по локальным областям, с использованием квадродеревьев
 //, openMP version
 
-void mixture_handler::q_tree_optimal_redraw_opMP(){
+void optional_handler::q_tree_optimal_redraw_opMP(){
 
-    int amount_window_x = img_l_x / window_size ;
-    int amount_window_y = img_l_y / window_size;
-
-
+    int amount_window_x = img_l_x / window_size, amount_window_y = img_l_y / window_size;
     auto begin1 = std::chrono::steady_clock::now();
     #pragma omp parallel
     {
-       
         quad_tree_handler tree = quad_tree_handler(m_image, window_size, class_flag,4);
 
         #pragma omp for
@@ -967,7 +285,7 @@ void mixture_handler::q_tree_optimal_redraw_opMP(){
 
 // раскраска по колмогорову, с распараллеливанием
 
-void mixture_handler::kolmogorov_optimal_redraw_opMP() {
+void optional_handler::kolmogorov_optimal_redraw_opMP() {
 	int length_ = 10;
 	auto begin1 = std::chrono::steady_clock::now();
 #pragma omp parallel
@@ -1701,7 +1019,7 @@ void mixture_handler::kolmogorov_optimal_redraw_opMP() {
 
 //BIC
 
-void mixture_handler::BIC() {
+void optional_handler::BIC() {
 	double summ = 0;
 	double big_summ = 0;
 	long double f_i_j, pix_buf;
@@ -1732,7 +1050,7 @@ void mixture_handler::BIC() {
 
 // загрузка результат классификации в файл 
 
-void mixture_handler::printInformation_to_image() {
+void optional_handler::printInformation_to_image() {
 	CImage result;
 	result.Create(img_l_y, img_l_x, 24);
 	int cl_idx_color_g = 0;
@@ -1741,9 +1059,9 @@ void mixture_handler::printInformation_to_image() {
 	// задаем цвет пикселя
 	for (int i = 0; i < img_l_x; i++) {
 		for (int j = 0; j < img_l_y; j++) {
-			cl_idx_color_g = (255/hyp_cl_amount)* class_flag[img_l_x - i - 1][j];
-			cl_idx_color_b = (255 / (hyp_cl_amount/2))*(class_flag[img_l_x - i - 1][j] % 3);
-			cl_idx_color_r = (255 / (hyp_cl_amount / 3))*(class_flag[img_l_x - i - 1][j] % 3);
+			cl_idx_color_g = (255 / hyp_cl_amount) * class_flag[img_l_x - i - 1][j];
+			cl_idx_color_b = (255 / (hyp_cl_amount / 2)) * (class_flag[img_l_x - i - 1][j] % 3);
+			cl_idx_color_r = (255 / (hyp_cl_amount / 3)) * (class_flag[img_l_x - i - 1][j] % 3);
 			result.SetPixelRGB(j, i, cl_idx_color_r, cl_idx_color_g, cl_idx_color_b);
 		}
 	}
@@ -1755,18 +1073,24 @@ void mixture_handler::printInformation_to_image() {
 
 }
 
-void mixture_handler::detect_result_by_mask(string filename) {
+void optional_handler::detect_result_by_mask(string filename, string other_classes) {
 	std::ofstream vmdelet_out;     //создаем поток 
 	vmdelet_out.open(filename, std::ios::app);
+	std::ofstream faults;     //создаем поток 
+	faults.open(other_classes, std::ios::app);
+
 	CImage mask_image;
-	double amount_cl_pix = 0;
+	double amount_cl_pix = 0, amount_true_pix = 0;
 	unsigned curr_class;
-	double amount_true_pix = 0;
+	
+	int * f_classes = new int[hyp_cl_amount];
 	int y_len, x_len, i, j, k;
 	cout << "percentage of correctly classified pixels:" << endl;
 	for (k = 0; k < hyp_cl_amount; ++k) {
 		if (img_mask_list[k] != "\"\"")
 		{
+			for (int l = 0; l < hyp_cl_amount; ++l)
+				f_classes[l] = 0;
 			mask_image.Load(img_mask_list[k].c_str());
 			amount_cl_pix = 0;
 			amount_true_pix = 0;
@@ -1776,29 +1100,36 @@ void mixture_handler::detect_result_by_mask(string filename) {
 					if (curr_class != 0) {
 						amount_cl_pix++;
 						//cout << i << " " << j << class_flag[img_l_x - i - 1][j] << curr_class + 1 << endl;
-						if (class_flag[img_l_x - i - 1][j] ==( curr_class+1))
-							//if (class_flag[i][j] ==( curr_class + 1))
-								//if (class_flag[j][i] == (curr_class + 1))
+						//if (class_flag[img_l_x - i - 1][j] ==( curr_class+1))
+							//для метода смесей на 1 номер класса меньше
+						if (class_flag[img_l_x - i - 1][j] == (curr_class))
+
 							amount_true_pix++;
+						else
+							f_classes[class_flag[img_l_x - i - 1][j] - 1] ++;
 					}
 
 				}
 			}
 			mask_image.Detach();
 			cout << "class " << k + 1 << ", "<< curr_class<< ": " << amount_true_pix / amount_cl_pix << endl;
-			
+			faults << "class " << k + 1 << ", ";
 			// открываем файл для записи 
-			
+			for (int l = 0; l < hyp_cl_amount; ++l)
+				faults << f_classes[l] / amount_cl_pix << " ";
+			faults << endl;
 			vmdelet_out << "class " << k + 1 << ", " << curr_class << ": " << amount_true_pix / amount_cl_pix << "\n"; // сама запись
 			
 		}	
 	}
+	delete[] f_classes;
 	vmdelet_out.close();   // закрываем файл
+	faults.close();
 }
 
 // вывод информации о полученном результате классификации
 
-void mixture_handler::printInformation() {
+void optional_handler::printInformation() {
 	unsigned i, j;
 	cout << "finded model:" << "\n";
 	/*cout << " mixture components: " << hyp_cl_amount << "\n";
@@ -1823,7 +1154,7 @@ void mixture_handler::printInformation() {
 
 //поиск медианы
 
-double mixture_handler::find_med(double* window, int wind_size) {
+double optional_handler::find_med(double* window, int wind_size) {
 	int med_index = (wind_size) / 2 - 1;
 	bool flag = true;
 	int left = 0;
@@ -1854,7 +1185,7 @@ double mixture_handler::find_med(double* window, int wind_size) {
 
 //поиск к-той порядковой статистики
 
-double mixture_handler::find_k_stat(double * data, int wind_size, int k_stat) {
+double optional_handler::find_k_stat(double * data, int wind_size, int k_stat) {
 	bool flag = true;
 	int  left = 0;
 	int  right = wind_size - 1;
@@ -1878,7 +1209,7 @@ double mixture_handler::find_k_stat(double * data, int wind_size, int k_stat) {
 
 // быстрая сортировка
 
-void  mixture_handler::quickSort(double * data,  int l, int r, int pivot_index) {
+void  optional_handler::quickSort(double * data,  int l, int r, int pivot_index) {
 	double v , temp;
 	int i ,	j ,	p ,	q ;
 	while (l < r) {
@@ -1948,12 +1279,10 @@ void  mixture_handler::quickSort(double * data,  int l, int r, int pivot_index) 
 }
 
 
-std::pair<int, int> mixture_handler::partition(double* mass, int left, int right, int  ind_pivot)
+std::pair<int, int> optional_handler::partition(double* mass, int left, int right, int  ind_pivot)
 {
 	double v = mass[ind_pivot];
-	//	double buf = mass[left];
-	//double v = mass[right];
-
+	
 	double temp = mass[right];
 	mass[right] = v;
 	mass[ind_pivot] = temp;
@@ -2010,7 +1339,7 @@ std::pair<int, int> mixture_handler::partition(double* mass, int left, int right
 
 // вызов скрипта на python для отрисовки результатов
 
-void mixture_handler::draw_graphics() {
+void optional_handler::draw_graphics() {
 	string cmd = "echo python  C:\\Users\\anastasya\\PycharmProjects\\untitled5\\mixture_vizualization.py " + gen_mix_filename +
 		" " + split_mix_filename +
 		" | %windir%\\system32\\cmd.exe \"/K\" C:\\Users\\anastasya\\Anaconda3\\Scripts\\activate.bat  ";

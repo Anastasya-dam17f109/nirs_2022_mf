@@ -35,15 +35,13 @@ mix_img_obj::mix_img_obj(string file_name, int img_size, mix_type mix_t, int amo
 
 // конструктор, позволяющий обрабатывать реальные РЛИ ,загружаемые из файла
 
-mix_img_obj::mix_img_obj(string file_name) {
+mix_img_obj::mix_img_obj(string file_name, bool flag) {
 	ifstream load_params;
-	int files_amount = 0;
-	int n_buf;
-	int mask_amount = 0;
-	int stat_mask_amount = 0;
+	genFlag = flag;
+	int n_buf, files_amount = 0, mask_amount = 0, stat_mask_amount = 0, input_mix_num = 0;
 	string buf;
-	int input_mix_num = 0;
 	
+	cout << "filename " << file_name << endl;
 	load_params.open(file_name);
 	load_params >> files_amount;
 	load_params >> class_amount;
@@ -96,7 +94,8 @@ mix_img_obj::mix_img_obj(string file_name) {
     // ИЗ=ЗА НАКОПЛЕНИЯ ОТСЧЕТОВ
     if(mixture_type == LOGNORMAL)
         mixture_type = NORMAL;
-	img_accumulation();
+	if(genFlag)
+		img_accumulation();
 	print_results();
 }
 
@@ -105,93 +104,100 @@ mix_img_obj::mix_img_obj(string file_name) {
 // то для сохранения свойств распределений преобразуем логнормальное распределение к нормальному
 
 void mix_img_obj::load_from_bitmap() {
-	int y_len, x_len,  j, k, buf_amount=0;
-	unsigned i;
+	int y_len, x_len,  j, k, buf_amount = 0;
+	unsigned i = 1;
 	bool mask_flag = false;
-	CImage image;
-	CImage image_mask;
-	//string t = filename_load_image;
+	CImage image, image_mask;
 	LPCTSTR pS2 = filename_load_image.c_str();
+
 	image.Load(static_cast<LPCTSTR>(filename_load_image.c_str()));
 	y_len = image.GetHeight();
 	x_len = image.GetWidth();
+	cout << filename_load_image << endl;
+	cout << "size: " << x_len << " " << y_len << "\n";
 	// делаем изображение длиной 2^n*2^n
-	if (y_len > x_len)
-		image_len_x = x_len;
-	else
-		image_len_x = y_len;
-	i = 1;
+	image_len_x = (y_len > x_len) ? x_len : y_len;
+
 	while (i < image_len_x)
 		i *= 2;
 	i /= 2;
 	image_len_x = i;
 	image_len_y = i;
 	alloc_layer_mmr();
-	cout << "im_here" << endl;
-	for (i = 0; i < image_len_x; i++) 
-		for (j = 0; j < image_len_y; j++) 
-            if(mixture_type == LOGNORMAL)
-                layer_mx_img[layer_idx[layer_amount - 1]+(image_len_x - i - 1)*image_len_x + j] = log(double(GetGValue(image.GetPixel(j, i))));
-            else
-                layer_mx_img[layer_idx[layer_amount - 1] + (image_len_x - i - 1)*image_len_x + j] = log(double(GetGValue(image.GetPixel(j, i))));
-	image.Detach();
-	for (k = 0; k < class_amount; ++k) {
-		image.Load(class_list[k].c_str());
-		re_mix_shift[k] = 0;
-		re_mix_scale[k] = 0;
-		buf_amount = 0;
-		y_len = image.GetHeight();
-		x_len = image.GetWidth();
-		auto pred = find(load_mask_list_idx.begin(), load_mask_list_idx.end(), k);
-		if (pred != load_mask_list_idx.end()) {
-			mask_flag = true;
-			image_mask.Load(load_mask_list[distance(load_mask_list_idx.begin(), pred)].c_str());
-		}
-		else
-			mask_flag = false;
 
-		for (i = 0; i < y_len; i++)
-			for (j = 0; j < x_len; j++) {
-				if (mask_flag) {
-
-                    if(mixture_type == LOGNORMAL)
-                        re_mix_shift[k] += log(double(GetGValue(image.GetPixel(j, i))))*(1 - int(GetGValue(image_mask.GetPixel(j, i))) / 255);
-                    else
-                        re_mix_shift[k] += double(GetGValue(image.GetPixel(j, i)))*(1 - int(GetGValue(image_mask.GetPixel(j, i))) / 255);
-					buf_amount += (1 - int(GetGValue(image_mask.GetPixel(j, i))) / 255);
-				}
-				else {
-                    if(mixture_type == LOGNORMAL)
-                        re_mix_shift[k] += log(double(GetGValue(image.GetPixel(j, i))));
-                    else
-                        re_mix_shift[k] += double(GetGValue(image.GetPixel(j, i)));
-					buf_amount = y_len * x_len;
-				}
-			}
+	if (genFlag)
+	{
 		
-		re_mix_shift[k] /= double(buf_amount);
-		//cout << "buf_amount " << buf_amount << " " << y_len * x_len << endl;
-		for (i = 0; i < y_len; i++)
-			for (j = 0; j < x_len; j++) {
-				if (mask_flag) 
-                    if(mixture_type == LOGNORMAL)
-                        re_mix_scale[k] += pow((log(double((GetGValue(image.GetPixel(j, i))))) - re_mix_shift[k])
-                                           *(1 - int(GetGValue(image_mask.GetPixel(j, i))) / 255), 2);
-                    else
-                        re_mix_scale[k] += pow((double((GetGValue(image.GetPixel(j, i)))) - re_mix_shift[k])
-                                               *(1 - int(GetGValue(image_mask.GetPixel(j, i))) / 255), 2);
+		for (i = 0; i < image_len_x; i++)
+			for (j = 0; j < image_len_y; j++)
+				if (mixture_type == LOGNORMAL)
+					layer_mx_img[layer_idx[layer_amount - 1] + (image_len_x - i - 1)*image_len_x + j] =
+						log(double(GetGValue(image.GetPixel(j, i))) + 1);
 				else
-                    if(mixture_type == LOGNORMAL)
-                        re_mix_scale[k] += pow(log(double(GetGValue(image.GetPixel(j, i)))) - re_mix_shift[k], 2);
-                    else
-                        re_mix_scale[k] += pow(double(GetGValue(image.GetPixel(j, i))) - re_mix_shift[k], 2);
-			}
-		
-		re_mix_scale[k] = sqrt(re_mix_scale[k] / double(buf_amount));
-		//re_mix_scale[k] = sqrt(log(re_mix_scale[k] / (re_mix_shift[k] * re_mix_shift[k]) + 1.0));
-		//re_mix_shift[k] = log(re_mix_shift[k] / exp(re_mix_scale[k] * re_mix_scale[k] / 2.0));
+					layer_mx_img[layer_idx[layer_amount - 1] + (image_len_x - i - 1)*image_len_x + j] = 
+						log(double(GetGValue(image.GetPixel(j, i))));
 		image.Detach();
+		for (k = 0; k < class_amount; ++k) {
+			image.Load(class_list[k].c_str());
+			re_mix_shift[k] = 0;
+			re_mix_scale[k] = 0;
+			buf_amount = 0;
+			y_len = image.GetHeight();
+			x_len = image.GetWidth();
+			auto pred = find(load_mask_list_idx.begin(), load_mask_list_idx.end(), k);
+			if (pred != load_mask_list_idx.end()) {
+				mask_flag = true;
+				image_mask.Load(load_mask_list[distance(load_mask_list_idx.begin(), pred)].c_str());
+			}
+			else
+				mask_flag = false;
+
+			for (i = 0; i < y_len; i++)
+				for (j = 0; j < x_len; j++) {
+					if (mask_flag) {
+
+						if (mixture_type == LOGNORMAL)
+							re_mix_shift[k] += log(double(GetGValue(image.GetPixel(j, i))) + 1)*(1 - int(GetGValue(image_mask.GetPixel(j, i))) / 255);
+						else
+							re_mix_shift[k] += double(GetGValue(image.GetPixel(j, i)))*(1 - int(GetGValue(image_mask.GetPixel(j, i))) / 255);
+						buf_amount += (1 - int(GetGValue(image_mask.GetPixel(j, i))) / 255);
+					}
+					else {
+						if (mixture_type == LOGNORMAL)
+							re_mix_shift[k] += log(double(GetGValue(image.GetPixel(j, i))) + 1);
+						else
+							re_mix_shift[k] += double(GetGValue(image.GetPixel(j, i)));
+						buf_amount = y_len * x_len;
+					}
+				}
+
+			re_mix_shift[k] /= double(buf_amount);
+			//cout << "buf_amount " << buf_amount << " " << y_len * x_len << endl;
+			for (i = 0; i < y_len; i++)
+				for (j = 0; j < x_len; j++) {
+					if (mask_flag)
+						if (mixture_type == LOGNORMAL)
+							re_mix_scale[k] += pow((log(double((GetGValue(image.GetPixel(j, i)))) + 1) - re_mix_shift[k])
+								*(1 - int(GetGValue(image_mask.GetPixel(j, i))) / 255), 2);
+						else
+							re_mix_scale[k] += pow((double((GetGValue(image.GetPixel(j, i)))) - re_mix_shift[k])
+								*(1 - int(GetGValue(image_mask.GetPixel(j, i))) / 255), 2);
+					else
+						if (mixture_type == LOGNORMAL)
+							re_mix_scale[k] += pow(log(double(GetGValue(image.GetPixel(j, i))) + 1) - re_mix_shift[k], 2);
+						else
+							re_mix_scale[k] += pow(double(GetGValue(image.GetPixel(j, i))) - re_mix_shift[k], 2);
+				}
+
+			re_mix_scale[k] = sqrt(re_mix_scale[k] / double(buf_amount));
+			//re_mix_scale[k] = sqrt(log(re_mix_scale[k] / (re_mix_shift[k] * re_mix_shift[k]) + 1.0));
+			//re_mix_shift[k] = log(re_mix_shift[k] / exp(re_mix_scale[k] * re_mix_scale[k] / 2.0));
+			image.Detach();
+		}
 	}
+	else 
+		image.Detach();
+	
 }
 
 //создание картинки с заданными параметрами
@@ -299,7 +305,7 @@ void mix_img_obj::img_generator() {
 
 			for (k = 0; k < targ_size[j]; k++) {
 				for (l = 0; l < targ_size[j]; l++) 
-					layer_mx_img[layer_idx[layer_amount - 1] +(t_coord_x + k)*targ_size[j] + t_coord_y + l] = dist_gen_trg(i);
+					layer_mx_img[layer_idx[layer_amount - 1] +( t_coord_x+ k)* image_len_x + t_coord_y + l] = dist_gen_trg(i);
 			}
 		}
 	}
@@ -457,11 +463,10 @@ void  mix_img_obj::img_accumulation() {
 	for (int i = layer_amount - 2; i > -1; i--) 
 		for (int k = 0; k < layer_size[i]; ++k) 
 			for (int l = 0; l < layer_size[i]; ++l) {
-				layer_mx_img[layer_idx[i]+ k* layer_size[i] +l] = (layer_mx_img[layer_idx[i+1] + 2*k * layer_size[i+1] + 2*l]
+				layer_mx_img[layer_idx[i]+ k* layer_size[i] +l] =  (layer_mx_img[layer_idx[i+1] + 2*k * layer_size[i+1] + 2*l]
 					+ layer_mx_img[layer_idx[i + 1] + (2 * k+1) * layer_size[i + 1] + 2 * l]
 					+ layer_mx_img[layer_idx[i + 1] + 2 * k * layer_size[i + 1] + 2 * l+1]
 					+ layer_mx_img[layer_idx[i + 1] + (2 * k+1) * layer_size[i + 1] + 2 * l+1]) / 4.0;
-				//cout << k << " " << l << endl;
 			}
 }
 
@@ -469,25 +474,31 @@ void  mix_img_obj::img_accumulation() {
 
 void  mix_img_obj::print_results() {
 	unsigned i, j;
-	out.open(filename_gen_image);
-	for (i = 0; i < image_len_x; i++) {
-		for (j = 0; j < image_len_y; j++)
-			out << layer_mx_img[layer_idx[layer_amount - 1]+i* image_len_x +j] << " ";
-		out << std::endl;
+	if (genFlag)
+	{
+		out.open(filename_gen_image);
+		for (i = 0; i < image_len_x; i++) {
+			for (j = 0; j < image_len_y; j++)
+				out << layer_mx_img[layer_idx[layer_amount - 1] + i * image_len_x + j] << " ";
+			out << std::endl;
+		}
 	}
 	out.close();
 	cout << " generated image params:" << "\n";
 	//cout << "mixture type: " << mixture_type << "\n";
 	cout << "size: " << image_len_x << " " << image_len_y << "\n";
 	cout << " mix components amount: " << class_amount  << "\n";
-	cout << "re_mix_shift values:" << endl;
-	for (i = 0; i < class_amount; i++)
-		cout << re_mix_shift[i] << "  ";
-	cout << "\n";
+	if (genFlag)
+	{
+		cout << "re_mix_shift values:" << endl;
+		for (i = 0; i < class_amount; i++)
+			cout << re_mix_shift[i] << "  ";
+		cout << "\n";
 
-	cout << "re_mix_scale values:" << "\n";
-	for (i = 0; i < class_amount; i++)
-		cout << re_mix_scale[i] << "  ";
+		cout << "re_mix_scale values:" << "\n";
+		for (i = 0; i < class_amount; i++)
+			cout << re_mix_scale[i] << "  ";
+	}
 	cout << endl;
 }
 

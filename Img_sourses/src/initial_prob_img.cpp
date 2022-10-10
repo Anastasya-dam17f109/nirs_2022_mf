@@ -21,14 +21,16 @@ initial_prob_img::initial_prob_img(shared_ptr<mix_img_obj> image){
 
 }
 
-// создание объекта через загрузчик-файл
+// создание объекта через загрузчик-файл +  флаг, необходимо ли считать статистики по изображениям и генерить вероятности
 
 initial_prob_img::initial_prob_img(string filename, bool flag) {
 	genFlag = flag;
 	m_image      = shared_ptr<mix_img_obj>(new mix_img_obj(filename, genFlag));
+
 	image_len_x  = m_image->get_image_len().first;
 	image_len_y  = m_image->get_image_len().second;
 	class_amount = m_image->get_class_amount();
+
 	if (genFlag)
 	{
 		mix_shift = m_image->get_shift();
@@ -36,7 +38,7 @@ initial_prob_img::initial_prob_img(string filename, bool flag) {
 	}
 	layer_amount = m_image->get_layer_amount();
 	layer_size   = m_image->get_layer_size();
-	layer_idx = m_image->get_layer_idx();
+	layer_idx    = m_image->get_layer_idx();
 	cl_probs     = shared_ptr<double[]>(new double[class_amount]);
 	for (int i = 0; i < class_amount; ++i)
 		cl_probs[i] = 1.0 / class_amount;
@@ -47,6 +49,19 @@ initial_prob_img::initial_prob_img(string filename, bool flag) {
 		generate_init_probs_mix_opMP_V2();
 		//mix_scale = m_image->get_scale();
 	}
+}
+
+//
+
+initial_prob_img::initial_prob_img(string configFilename)
+{
+	
+
+	/*m_image = shared_ptr<mix_img_obj>(new mix_img_obj(filename_load_image, false));
+
+	image_len_x = m_image->get_image_len().first;
+	image_len_y = m_image->get_image_len().second;
+	class_amount = m_image->get_class_amount();*/
 }
 
 // создание объекта через заданные значения для генератора картинки

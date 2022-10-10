@@ -5,7 +5,7 @@
 
 //класс-обработчик большого изображения
 
-class mixture_handler
+class optional_handler
 {
 	shared_ptr<initial_prob_img> m_image;
 	double* raw_image;
@@ -40,11 +40,14 @@ class mixture_handler
 	string split_mix_filename = "D:\\splitted_image.txt";
 
 public:
-	mixture_handler(shared_ptr < mix_img_obj> img, unsigned h_classes, double acc);
-	mixture_handler(shared_ptr <initial_prob_img> img, unsigned h_classes, double acc);
-	//mixture_handler(shared_ptr<shared_ptr<double[]>[]> img, unsigned h_classes, double acc);
+	optional_handler(){}
+	void mixture_handler(shared_ptr <mix_img_obj> img, unsigned h_classes, double acc);
+	void network_results_handler(shared_ptr <mix_img_obj> img, unsigned h_classes, string classificationData);
+	void quadtree_handler(shared_ptr <initial_prob_img> img, unsigned h_classes, double acc);
+	//void network_quad_tree_handler(shared_ptr <initial_prob_img> img, unsigned h_classes, double acc);
+	
 	void draw_graphics();
-	void detect_result_by_mask();
+	void detect_result_by_mask(string filename, string other_classes);
 	
 	bool get_equal_hyp_flag() {
 		return equal_hyp_flag;
@@ -52,7 +55,8 @@ public:
 	double get_bic_value() {return bic_value;}
 	void printInformation();
 	void printInformation_to_image();
-	void mixture_inicalization();
+	void res_memory_allocation();
+	void get_classification_from_file(string filename);
 	
 	double find_k_stat(double * data, int wind_size, int k_stat);
 	double find_med(double* window, int wind_size);
@@ -60,14 +64,13 @@ public:
 	void  quickSort(double * data, int wind_size, int l, int r);
 
 	
-    void mixture_optimal_redraw_opMP();
     void mixture_optimal_redraw_opMP_V2();
 	void kolmogorov_optimal_redraw_opMP();
     void q_tree_optimal_redraw_opMP();
 	
 	void BIC();
 
-	~mixture_handler() {
+	~optional_handler() {
         for (unsigned i = 0; i < img_l_x; i++)
 			delete[] class_flag[i];
 		delete[] class_flag;

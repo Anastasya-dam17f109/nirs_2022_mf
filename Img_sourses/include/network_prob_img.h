@@ -2,14 +2,13 @@
 #include "mix_img_obj.h"
 #include "omp.h"
 
-class initial_prob_img
+class network_prob_img
 {
 	shared_ptr<mix_img_obj> m_image;
 	shared_ptr <int[]>      layer_size;
 	shared_ptr <int[]>      layer_idx;
 	shared_ptr <int[]>      init_layer_idx;
 	int layer_amount = 1;
-
 	double* init_prob_img;
 	shared_ptr<double[]> mix_shift;
 	shared_ptr<double[]> mix_scale;
@@ -22,19 +21,9 @@ class initial_prob_img
 
 	bool genFlag = true;
 public:
-	// конструктор для генерации изображения с автоматически добавляемыми целями
-	initial_prob_img(int img_size, mix_type mix_t, int amount_targets, int classes);
-	initial_prob_img(string file_name, int img_size, mix_type mix_t, int amount_targets, int classes);
-	initial_prob_img(shared_ptr<mix_img_obj> image);
-	// конструктор получает имя файла о изображении, а также флаг, нужно или нет самостоятельно генерить вероятности
-	initial_prob_img(string filename, bool flag);
 	// конструктор получает имя файла конфигурации - имена всех файлов, что сделала нейросеть
-	initial_prob_img(string configFilename);
+	network_prob_img(string configFilename);
 	void     alloc_layer_mmr();
-
-	void     generate_init_probs_mixtures();
-	void     generate_init_probs_mix_opMP_V2();
-	void     generate_init_probs_max_apost_opMP_V2();
 
 	int                     get_class_amount() { return class_amount; }
 	std::pair<int, int>     get_image_len() { return std::pair<int, int>(image_len_x, image_len_y); }

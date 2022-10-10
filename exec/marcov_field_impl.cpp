@@ -2,70 +2,82 @@
 #include "quad_tree_handler.h"
 #include <boost/filesystem.hpp>
 #include "mixture_handler.h"
+#include <fstream>
 
 using namespace boost::filesystem;
-int main() {
-	//for (int order = 1; order < 3; order++) {
-	//normal s;
-	//cout << s.mean() << endl;
-	//	int n = 1 << order;
-	//	//Hilbert_curve curve(n);
-	//	cout << n;
-	//	Zig_zag_curve curve(pow(2, order),3);
-	//	curve.get_points_for_curve();
-	//	std::cout << "Hilbert curve, order=" << order << '\n';
-	//	/*std::vector<std::string> lines = curve.draw_curve();
-	//	for (auto &line : lines) {
-	//		std::cout << line.c_str() << '\n';
-	//	}*/
-	//	for (auto& point : curve.get_points())
-	//		std::cout << '(' << point.x << ',' << point.y << ')' << '\n';
-	//	std::cout << '\n';
-	//}
+//int main(){
+int main(int argc, char *argv[]) {
 
+	//тест для обработки большого реального изображения после прохода нейросетью
+	optional_handler t;
 
+	// дефолтные значения аргументов для запуска обработчика
+	//"C:\\Users\\anastasya\\Desktop\\data_FR.txt", false);
+	//("C:\\Users\\anastasya\\Desktop\\data_test.txt", false);
+	string fileDescrName = "C:\\Users\\anastasya\\Desktop\\data_Kubinka.txt", fileResName = "D:\\_SAR_Kubinka\\class_results.txt";
+	string fileFaultClassName = "D:\\_SAR_Kubinka\\fault_results.txt", fileClassMarks = "";
+	bool genProbsFlag = true;
+	int handlerType = 3;
 
-	// //тест для обработки большого реального изображения тем или иным способом
-	//{
-	//	//initial_prob_img *img = new initial_prob_img("C:\\Users\\anastasya\\Desktop\\data_FR.txt");
-	//	initial_prob_img *img = new initial_prob_img("C:\\Users\\anastasya\\Desktop\\data_Kubinka.txt" , false);
-	//	//initial_prob_img *img = new initial_prob_img("C:\\Users\\anastasya\\Desktop\\data_test.txt");
-
-	//	shared_ptr<initial_prob_img> ptr_img(img);
-	//	//mixture_handler t(ptr_img->get_m_image(), 5, 0.001);
-	//	mixture_handler t(ptr_img, 5, 0.001);
-	//	//t.mixture_optimal_redraw_opMP_V2();
-	//	//t.kolmogorov_optimal_redraw_opMP();
-
-	//	t.q_tree_optimal_redraw_opMP();
-	//	t.detect_result_by_mask();
-	//	t.printInformation();
-	//	t.draw_graphics();
-	//}
-	
-	 //тест для обработки большого реального изображения после прохода нейросетью
+	if (argc != 1)
 	{
-		//initial_prob_img *img = new initial_prob_img("C:\\Users\\anastasya\\Desktop\\data_FR.txt");
-		//initial_prob_img *img = new initial_prob_img("C:\\Users\\anastasya\\Desktop\\data_Kubinka1.txt", false);
-		initial_prob_img *img = new initial_prob_img("C:\\Users\\anastasya\\Desktop\\data_test.txt", false);
+		std::ifstream load_params;
+		int files_amount;
+		string buf;
+		genProbsFlag = false;
 
-		shared_ptr<initial_prob_img> ptr_img(img);
-		mixture_handler t(ptr_img->get_m_image(), 5, 0.001, false);
-		//mixture_handler t(ptr_img, 5, 0.001 , false);
-		//t.mixture_optimal_redraw_opMP_V2();
-		//t.kolmogorov_optimal_redraw_opMP();
+		load_params.open(argv[2]);
+		// считываем названия основных конфигурационных файлов для обработки результатов нейросети
+		load_params >> files_amount;
+		load_params >> buf;
+		fileDescrName = string(buf.begin(), buf.end());
+		load_params >> buf;
+		fileClassMarks = string(buf.begin(), buf.end());
+		load_params >> buf;
+		fileResName = string(buf.begin(), buf.end());
+		load_params >> buf;
+		fileFaultClassName = argv[5];
+		// здесь считываем информацию о результатах классифкации обычных и накопленных изображений,  сделанных нейросеткой
+		load_params >> files_amount;
+		
 
-		//t.q_tree_optimal_redraw_opMP();
-		/*t.get_classification_from_file("D:\\_SAR_Kubinka\\class_marks.txt");
-		t.detect_result_by_mask("D:\\_SAR_Kubinka\\class_results.txt");*/
 
-		t.get_classification_from_file("D:\\image_data\\class_marks.txt");
-		t.detect_result_by_mask("D:\\image_data\\class_results.txt");
-		t.printInformation();
-		//t.draw_graphics();
+	}
+	if (handlerType > 2)
+		genProbsFlag = false;
+	initial_prob_img *img = new initial_prob_img(fileDescrName, genProbsFlag);
+	shared_ptr<initial_prob_img> ptr_img(img);
+	switch (handlerType) 
+	{
+	case 1:
+	{
+		t.mixture_handler(ptr_img->get_m_image(), 5, 0.001);
+	}
+	break;
+	case 2:
+	{
+		t.quadtree_handler(ptr_img, 5, 0.001);
+	}
+	break;
+	case 3:
+	{
+		t.network_results_handler(ptr_img->get_m_image(), 5, argv[3]);
+	}
+	break;
+	case 4:
+	{
+		cout << "there will be neural network + quadtree" << endl;
+	}
+	break;
 	}
 
-	
+
+	t.detect_result_by_mask(fileResName, fileFaultClassName);
+	t.printInformation();
+	//t.draw_graphics();
+
+
+
 	////тест для обработки маленького собственно-сгенеренного изображения
 	//{
 	//	initial_prob_img *img = new initial_prob_img(32, NORMAL, 1, 2);
