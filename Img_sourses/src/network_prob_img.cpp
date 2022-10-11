@@ -1,34 +1,48 @@
-//#include "pch.h"
 #include "network_prob_img.h"
 
 
+void newtwork_prob_img::gen_prob_img_from_config(string filename) {
+
+    m_image      = shared_ptr<mix_img_obj>(new mix_img_obj(filename, false));
+    m_image_len_x  = m_image->get_image_len().first;
+    m_image_len_y  = m_image->get_image_len().second;
+    m_class_amount = m_image->get_class_amount();
+    m_layer_amount = m_image->get_layer_amount();
+    m_layer_size   = m_image->get_layer_size();
+    m_layer_idx    = m_image->get_layer_idx();
+    m_cl_probs     = shared_ptr<double[]>(new double[m_class_amount]);
+    for (int i = 0; i < m_class_amount; ++i)
+        m_cl_probs[i] = 1.0 / m_class_amount;
+    alloc_layer_mmr();
+}
 
 //
 
-network_prob_img::network_prob_img(string configFilename)
+void newtwork_prob_img::load_probs_from_file(list<string> probs_data)
 {
-	
-	
-	m_image = shared_ptr<mix_img_obj>(new mix_img_obj(filename, genFlag));
-
-	image_len_x = m_image->get_image_len().first;
-	image_len_y = m_image->get_image_len().second;
-	class_amount = m_image->get_class_amount();
-}
-
-
-
-
-void network_prob_img::alloc_layer_mmr(){
-
-	init_layer_idx = shared_ptr <int[]>(new int [layer_amount]);
-	int summ = 0;
-	for (int k = 0; k < layer_amount; ++k) {
-		init_layer_idx[k] = summ;
-		summ += layer_size[k] * layer_size[k] * class_amount;
+	//здесь предполагаем, что первый файл - это последний слой, нет пропусков и прочего
+	for (int k = m_layer_amount - 1; k > m_layer_amount- probs_data.size(); --k)
+	{
+		std::ifstream load_params;
+		
+		load_params.open(probs_data[m_layer_amount - 1 -k]);
+		double buf;
+		load_params >> buf;
+		cout << "buf " << buf << endl;
+		load_params >> buf;
+		cout << "buf " << buf << endl;
+		for (int i = 0; i < m_layer_size[k]; i++) {
+			for (int j = 0; j < m_layer_size[k]; j++) {
+				
+				for (int t = 0; t < m_class_amount; t++) {
+					load_params >> buf;
+					m_prob_img[m_init_layer_idx[k] +
+						i * m_layer_size[k] * m_class_amount +
+						j * m_class_amount +
+						t] = buf;
+				}
+			}
+		}
+		load_params.close();
 	}
-
-	init_prob_img = new double [summ];
-	
 }
-

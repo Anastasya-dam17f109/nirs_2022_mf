@@ -1,8 +1,9 @@
 ﻿// marcov_field_impl.cpp : Этот файл содержит функцию "main". Здесь начинается и заканчивается выполнение программы.
 #include "quad_tree_handler.h"
 #include <boost/filesystem.hpp>
-#include "mixture_handler.h"
+#include "optional_handler.h"
 #include <fstream>
+#include "network_prob_img.h"
 
 using namespace boost::filesystem;
 //int main(){
@@ -16,17 +17,19 @@ int main(int argc, char *argv[]) {
 	//("C:\\Users\\anastasya\\Desktop\\data_test.txt", false);
 	string fileDescrName = "C:\\Users\\anastasya\\Desktop\\data_Kubinka.txt", fileResName = "D:\\_SAR_Kubinka\\class_results.txt";
 	string fileFaultClassName = "D:\\_SAR_Kubinka\\fault_results.txt", fileClassMarks = "";
-	bool genProbsFlag = true;
+	basic_prob_img *img;
 	int handlerType = 3;
-
+	list<string> fileNames;
+	cout << "in programm" << endl;
 	if (argc != 1)
 	{
+		cout << "in if block" << endl;
 		std::ifstream load_params;
 		int files_amount;
 		string buf;
-		genProbsFlag = false;
-
-		load_params.open(argv[2]);
+		handlerType = atoi(argv[2]);
+		cout << argv[1] << endl;
+		load_params.open(argv[1]);
 		// считываем названия основных конфигурационных файлов для обработки результатов нейросети
 		load_params >> files_amount;
 		load_params >> buf;
@@ -36,37 +39,52 @@ int main(int argc, char *argv[]) {
 		load_params >> buf;
 		fileResName = string(buf.begin(), buf.end());
 		load_params >> buf;
-		fileFaultClassName = argv[5];
+		fileFaultClassName = string(buf.begin(), buf.end());
 		// здесь считываем информацию о результатах классифкации обычных и накопленных изображений,  сделанных нейросеткой
 		load_params >> files_amount;
-		
-
-
+		for (int i = 0; i < files_amount; ++i)
+		{
+			load_params >> buf;
+			fileNames.push_back(string(buf.begin(), buf.end()));
+		}
+		load_params.close();
 	}
-	if (handlerType > 2)
-		genProbsFlag = false;
-	initial_prob_img *img = new initial_prob_img(fileDescrName, genProbsFlag);
-	shared_ptr<initial_prob_img> ptr_img(img);
+	 
 	switch (handlerType) 
 	{
 	case 1:
 	{
+		img = new initial_prob_img();
+		img->gen_prob_img_from_config(fileDescrName);
+		shared_ptr<basic_prob_img> ptr_img(img);
 		t.mixture_handler(ptr_img->get_m_image(), 5, 0.001);
 	}
 	break;
 	case 2:
 	{
+		img = new initial_prob_img();
+		img->gen_prob_img_from_config(fileDescrName);
+		shared_ptr<basic_prob_img> ptr_img(img);
 		t.quadtree_handler(ptr_img, 5, 0.001);
 	}
 	break;
 	case 3:
 	{
-		t.network_results_handler(ptr_img->get_m_image(), 5, argv[3]);
+		img = new newtwork_prob_img();
+		img->gen_prob_img_from_config(fileDescrName);
+		shared_ptr<basic_prob_img> ptr_img(img);
+		t.network_results_handler(ptr_img->get_m_image(), 5, fileClassMarks);
 	}
 	break;
 	case 4:
 	{
-		cout << "there will be neural network + quadtree" << endl;
+		
+		img = new newtwork_prob_img();
+		img->gen_prob_img_from_config(fileDescrName);
+		img->load_probs_from_file(fileNames);
+		shared_ptr<basic_prob_img> ptr_img(img);
+
+		//t.network_results_handler(ptr_img->get_m_image(), 5, fileClassMarks);
 	}
 	break;
 	}

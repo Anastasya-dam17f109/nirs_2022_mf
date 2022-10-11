@@ -38,7 +38,7 @@ void optional_handler::network_results_handler(shared_ptr <mix_img_obj> img, uns
 }
 
 
-void optional_handler::quadtree_handler(shared_ptr <initial_prob_img> img, unsigned h_classes, double acc) {
+void optional_handler::quadtree_handler(shared_ptr <basic_prob_img> img, unsigned h_classes, double acc) {
 	accuracy = acc;
 	m_image = img;
 	img_mask_list = img->get_m_image()->get_mask_list();

@@ -7,7 +7,7 @@
 
 class optional_handler
 {
-	shared_ptr<initial_prob_img> m_image;
+    shared_ptr<basic_prob_img> m_image;
 	double* raw_image;
 	unsigned** class_flag;
 	shared_ptr<string[]> img_mask_list;
@@ -43,7 +43,7 @@ public:
 	optional_handler(){}
 	void mixture_handler(shared_ptr <mix_img_obj> img, unsigned h_classes, double acc);
 	void network_results_handler(shared_ptr <mix_img_obj> img, unsigned h_classes, string classificationData);
-	void quadtree_handler(shared_ptr <initial_prob_img> img, unsigned h_classes, double acc);
+    void quadtree_handler(shared_ptr <basic_prob_img> img, unsigned h_classes, double acc);
 	//void network_quad_tree_handler(shared_ptr <initial_prob_img> img, unsigned h_classes, double acc);
 	
 	void draw_graphics();

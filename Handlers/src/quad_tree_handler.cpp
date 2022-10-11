@@ -2,7 +2,7 @@
 #include "quad_tree_handler.h"
 
 
-quad_tree_handler::quad_tree_handler(shared_ptr<initial_prob_img> image, unsigned** cnt, int _h_tree){
+quad_tree_handler::quad_tree_handler(shared_ptr<basic_prob_img> image, unsigned** cnt, int _h_tree){
 	m_image = image;
 	init_prob_img   =  m_image->get_image();
 	init_layer_idx  = m_image->get_init_layer_idx();
@@ -120,7 +120,7 @@ quad_tree_handler::quad_tree_handler(shared_ptr<initial_prob_img> image, unsigne
 
 //
 
-quad_tree_handler::quad_tree_handler(shared_ptr<initial_prob_img> image, int size, unsigned** cnt, int _h_tree) {
+quad_tree_handler::quad_tree_handler(shared_ptr<basic_prob_img> image, int size, unsigned** cnt, int _h_tree) {
 	m_image = image;
 	h_tree = _h_tree;
 	init_prob_img = m_image->get_image();

@@ -23,7 +23,7 @@ struct Node
 
 class quad_tree_handler
 {
-	shared_ptr<initial_prob_img> m_image;
+	shared_ptr<basic_prob_img> m_image;
 	double* init_prob_img;
 
     unsigned ** class_flag;
@@ -53,8 +53,8 @@ class quad_tree_handler
 	string filename_split_image = "D:\\splitted_image.txt";
 public:
 	
-    quad_tree_handler(shared_ptr<initial_prob_img> image, unsigned** cnt, int _h_tree);
-    quad_tree_handler(shared_ptr<initial_prob_img> image, int size, unsigned** cnt, int _h_tree);
+    quad_tree_handler(shared_ptr<basic_prob_img> image, unsigned** cnt, int _h_tree);
+    quad_tree_handler(shared_ptr<basic_prob_img> image, int size, unsigned** cnt, int _h_tree);
 	
 	void build_quad_tree();
     void set_dest_cnt(unsigned ** cl_fl_ptr, int size);
