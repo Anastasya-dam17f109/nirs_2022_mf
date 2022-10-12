@@ -19,7 +19,7 @@ int main(int argc, char *argv[]) {
 	string fileFaultClassName = "D:\\_SAR_Kubinka\\fault_results.txt", fileClassMarks = "";
 	basic_prob_img *img;
 	int handlerType = 3;
-	list<string> fileNames;
+	vector<string> fileNames;
 	cout << "in programm" << endl;
 	if (argc != 1)
 	{
@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
 		img->gen_prob_img_from_config(fileDescrName);
 		img->load_probs_from_file(fileNames);
 		shared_ptr<basic_prob_img> ptr_img(img);
-
+		t.quadtree_handler(ptr_img, 5, 0.001);
 		//t.network_results_handler(ptr_img->get_m_image(), 5, fileClassMarks);
 	}
 	break;
@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
 
 	t.detect_result_by_mask(fileResName, fileFaultClassName);
 	t.printInformation();
-	//t.draw_graphics();
+	t.draw_graphics();
 
 
 

@@ -18,10 +18,10 @@ void newtwork_prob_img::gen_prob_img_from_config(string filename) {
 
 //
 
-void newtwork_prob_img::load_probs_from_file(list<string> probs_data)
+void newtwork_prob_img::load_probs_from_file(vector<string> probs_data)
 {
 	//здесь предполагаем, что первый файл - это последний слой, нет пропусков и прочего
-	for (int k = m_layer_amount - 1; k > m_layer_amount- probs_data.size(); --k)
+	for (int k = m_layer_amount - 1; k > m_layer_amount- probs_data.size()-1; --k)
 	{
 		std::ifstream load_params;
 		

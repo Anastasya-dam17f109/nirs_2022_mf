@@ -11,7 +11,7 @@ public:
 
     // конструктор получает имя файла о изображении, а также флаг, нужно или нет самостоятельно генерить вероятности
     virtual void gen_prob_img_from_config(string filename);//, bool flag);
-    virtual void load_probs_from_file(list<string> probs_data);
+    virtual void load_probs_from_file(vector<string> probs_data);
 
 };
 
