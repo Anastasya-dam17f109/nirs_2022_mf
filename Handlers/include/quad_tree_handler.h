@@ -15,23 +15,21 @@ struct Node
 	// для обработки как поля маркова 
 	
 	unique_ptr<long double[]> p_xs_ds;
-	unique_ptr<unique_ptr<unique_ptr<long double[]>[]>[]> p_xs_cs_ds;
-	unique_ptr<unique_ptr<long double[]>[]> p_xs_Y;
-	
-	
+	unique_ptr<long double[]> p_xs_cs_ds;
+	unique_ptr<long double[]> p_xs_Y;
 };
 
 class quad_tree_handler
 {
 	shared_ptr<basic_prob_img> m_image;
-	double* init_prob_img;
+	double* m_init_prob_img;
 
-    unsigned ** class_flag;
-    pair<int,int> l_coner;
+    unsigned ** m_class_flag;
+    pair<int,int> m_l_coner;
 	shared_ptr<Node>  m_root;
-	unsigned layer_amount = 1;
-	int h_tree = 5;
-	const unsigned layer_ord_amount = 10;
+	unsigned m_layer_amount = 1;
+	int m_h_tree = 5;
+	const unsigned m_layer_ord_amount = 10;
 	Node* layer;
 	//shared_ptr<shared_ptr<shared_ptr<shared_ptr<Node>[]>[]>[]> layer;
 	shared_ptr <shared_ptr<shared_ptr<Basic_curve>[]>[]> layer_order;
@@ -39,11 +37,11 @@ class quad_tree_handler
 	shared_ptr <int[]>          layer_idx;
 	shared_ptr <int[]>          init_layer_size;
 	shared_ptr <int[]>          init_layer_idx;
-	shared_ptr<shared_ptr<double[]>[]> p_xs_xs1;
-	shared_ptr<shared_ptr<double[]>[]> p_xs_layer;
+	shared_ptr<double[]> p_xs_xs1;
+	shared_ptr<double[]> p_xs_layer;
 	double theta = 0.7;
 	unsigned class_amount = 1;
-	double accuracy = 0.005;
+	double accuracy = 0.000;
 
 	shared_ptr <int[]>          pix_cl_amount;
 	shared_ptr <unsigned[]>     idx_max;
@@ -54,7 +52,7 @@ class quad_tree_handler
 public:
 	
     quad_tree_handler(shared_ptr<basic_prob_img> image, unsigned** cnt, int _h_tree);
-    quad_tree_handler(shared_ptr<basic_prob_img> image, int size, unsigned** cnt, int _h_tree);
+    quad_tree_handler(shared_ptr<basic_prob_img> image, int size, unsigned** cnt, int _h_tree, double acc);
 	
 	void build_quad_tree();
     void set_dest_cnt(unsigned ** cl_fl_ptr, int size);
@@ -66,6 +64,7 @@ public:
 	void up_down_pass_V2();
 	void split_image_by_summ();
 	void split_image_by_vote();
+	void split_image_by_max();
 	void create_splitted_img();
 	void draw_graphics();
     void clear_mem();

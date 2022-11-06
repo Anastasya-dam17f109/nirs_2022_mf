@@ -115,14 +115,16 @@ void mix_img_obj::load_from_bitmap() {
 	x_len = image.GetWidth();
 	cout << filename_load_image << endl;
 	cout << "size: " << x_len << " " << y_len << "\n";
+	image_len_x = x_len - x_len % 16;
+	image_len_y = y_len - y_len % 16;
 	// делаем изображение длиной 2^n*2^n
-	image_len_x = (y_len > x_len) ? x_len : y_len;
+	/*image_len_x = (y_len > x_len) ? x_len : y_len;
 
 	while (i < image_len_x)
 		i *= 2;
 	i /= 2;
 	image_len_x = i;
-	image_len_y = i;
+	image_len_y = i;*/
 	alloc_layer_mmr();
 
 	if (genFlag)
@@ -438,19 +440,21 @@ void  mix_img_obj::img_generator_from_file(string file_name) {
 // выделение памяти под многоуровневое изображение
 
 void  mix_img_obj::alloc_layer_mmr(){
-	int i = 2;
+	/*int i = 2;
 	while (i < image_len_x) {
 		i *= 2;
 		layer_amount++;
-	}
-
-	layer_size = shared_ptr <int[]>(new int[layer_amount]);
+	}*/
+	cout << "all_img" << endl;
+	layer_amount = 4;
+	layer_size = shared_ptr <int[]>(new int[2 * layer_amount]);
 	layer_idx  = shared_ptr <int[]>(new int[layer_amount]);
 	int summ_size = 0;
 	for (int i = 0; i < layer_amount; ++i) {
-		layer_size[i] = pow(2, i + 1);
+		layer_size[2 * i] = int( image_len_x /pow(2,  3-i) );
+		layer_size[2 * i + 1] = int(image_len_y / pow(2, 3 - i));
 		layer_idx[i] = summ_size;
-		summ_size += layer_size[i] * layer_size[i];
+		summ_size += layer_size[2 * i] * layer_size[2 * i + 1];
 	}
 	layer_mx_img = new double[summ_size];
 	
@@ -461,12 +465,12 @@ void  mix_img_obj::alloc_layer_mmr(){
 
 void  mix_img_obj::img_accumulation() {
 	for (int i = layer_amount - 2; i > -1; i--) 
-		for (int k = 0; k < layer_size[i]; ++k) 
-			for (int l = 0; l < layer_size[i]; ++l) {
-				layer_mx_img[layer_idx[i]+ k* layer_size[i] +l] =  (layer_mx_img[layer_idx[i+1] + 2*k * layer_size[i+1] + 2*l]
-					+ layer_mx_img[layer_idx[i + 1] + (2 * k+1) * layer_size[i + 1] + 2 * l]
-					+ layer_mx_img[layer_idx[i + 1] + 2 * k * layer_size[i + 1] + 2 * l+1]
-					+ layer_mx_img[layer_idx[i + 1] + (2 * k+1) * layer_size[i + 1] + 2 * l+1]) / 4.0;
+		for (int k = 0; k < layer_size[2*i]; ++k) 
+			for (int l = 0; l < layer_size[2*i+1]; ++l) {
+				layer_mx_img[layer_idx[i]+ k* layer_size[2 * i + 1] +l] =  (layer_mx_img[layer_idx[i+1] + 2*k * layer_size[2 * (i+1) +1] + 2*l]
+					+ layer_mx_img[layer_idx[i + 1] + (2 * k+1) * layer_size[2 * (i + 1) +1] + 2 * l]
+					+ layer_mx_img[layer_idx[i + 1] + 2 * k * layer_size[2 *  (i + 1) +1] + 2 * l+1]
+					+ layer_mx_img[layer_idx[i + 1] + (2 * k+1) * layer_size[2 *  (i + 1) +1] + 2 * l+1]) / 4.0;
 			}
 }
 

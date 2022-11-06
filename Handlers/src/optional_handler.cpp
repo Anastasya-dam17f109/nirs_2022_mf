@@ -66,9 +66,9 @@ void optional_handler::get_classification_from_file(string classificationData)
 	unsigned i, j;
 	ifstream load_classification;
 	load_classification.open(classificationData);
-
+	for (j = 0; j < img_l_y; j++)
 	for (i = 0; i < img_l_x; i++)
-		for (j = 0; j < img_l_y; j++)
+		
 			load_classification >> class_flag[i][j];
 	
 	load_classification.close();
@@ -256,23 +256,26 @@ void optional_handler::mixture_optimal_redraw_opMP_V2(){
 
 void optional_handler::q_tree_optimal_redraw_opMP(){
 
-    int amount_window_x = img_l_x / window_size, amount_window_y = img_l_y / window_size;
+    int amount_window_x = img_l_x / window_size , amount_window_y = img_l_y / window_size ;
     auto begin1 = std::chrono::steady_clock::now();
     #pragma omp parallel
     {
-        quad_tree_handler tree = quad_tree_handler(m_image, window_size, class_flag,4);
+        quad_tree_handler tree = quad_tree_handler(m_image, window_size, class_flag, 4, accuracy);
 
         #pragma omp for
         for (int i = 0; i < amount_window_x*amount_window_y; ++i) {
             
-                tree.set_probabilities(i/ amount_window_x, i%amount_window_x);
+                tree.set_probabilities(i/ amount_window_y, i%amount_window_y);
+				//cout << "bottom_up_pass" << endl;
                 tree.bottom_up_pass();
+				//cout << "up_down_pass_V2" << endl;
 				tree.up_down_pass_V2();
             // tree.up_down_pass();
                 // возможно, на сюда придется секцию critical
 #pragma omp critical
 				{
 					tree.split_image_by_vote();
+					//tree.split_image_by_max();
 				}
             
         }
@@ -1094,19 +1097,23 @@ void optional_handler::detect_result_by_mask(string filename, string other_class
 			mask_image.Load(img_mask_list[k].c_str());
 			amount_cl_pix = 0;
 			amount_true_pix = 0;
-			for (i = 0; i < img_l_x; i++) {
-				for (j = 0; j < img_l_y; j++) {
+			cout << "sizes" << endl;
+			cout << img_l_x << " " << img_l_y << endl;
+			cout << mask_image.GetWidth() << mask_image.GetHeight() << endl;
+			for (i = 0; i < img_l_y; i++) {
+				for (j = 0; j < img_l_x; j++) {
+					//cout << img_l_x << " " << img_l_y << endl;
 					curr_class = (unsigned(GetBValue(mask_image.GetPixel(j, i ))) / 255)*(k + 1);
 					if (curr_class != 0) {
 						amount_cl_pix++;
 						//cout << i << " " << j << class_flag[img_l_x - i - 1][j] << curr_class + 1 << endl;
 						//if (class_flag[img_l_x - i - 1][j] ==( curr_class+1))
 							//для метода смесей на 1 номер класса меньше
-						if (class_flag[img_l_x - i - 1][j] == (curr_class))
+						if (class_flag[j ][img_l_y - i-1] == (curr_class))
 
 							amount_true_pix++;
 						else
-							f_classes[class_flag[img_l_x - i - 1][j] - 1] ++;
+							f_classes[class_flag[j ][img_l_y - i -1] - 1] ++;
 					}
 
 				}
@@ -1144,8 +1151,9 @@ void optional_handler::printInformation() {
 	cout << endl;*/
 
 	out.open(split_mix_filename);
-	for (i = 0; i < img_l_x; i++) {
-		for (j = 0; j < img_l_y; j++)
+	for (j = 0; j < img_l_y; j++){
+	for (i = 0; i < img_l_x; i++) 
+		//for (j = 0; j < img_l_y; j++)
 			out << class_flag[i][j] << " ";
 		out << std::endl;
 	}
