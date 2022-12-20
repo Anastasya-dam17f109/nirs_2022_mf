@@ -2,21 +2,22 @@
 #include "optional_handler.h"
 
 
-void optional_handler::mixture_handler(shared_ptr < mix_img_obj> img, unsigned h_classes, double acc)
+void optional_handler::mixture_handler(shared_ptr < mix_img_obj> img, unsigned h_classes, int mode, double acc)
 {
 	accuracy      = acc;
+	m_mode        = mode;
 	img_mask_list = img->get_mask_list();
-	hyp_cl_amount= img->get_class_amount();
-	raw_image    = img->get_raw_image();
-	mixture_type = img->get_mixture_type();
-	img_l_x      = img->get_image_len().first;
-	img_l_y      = img->get_image_len().second;
-	min_trg_size = img->get_min_targ_size();
-	mix_shift    = img->get_shift();
-	mix_scale    = img->get_scale();
+	hyp_cl_amount = img->get_class_amount();
+	raw_image     = img->get_raw_image();
+	mixture_type  = img->get_mixture_type();
+	img_l_x       = img->get_image_len().first;
+	img_l_y       = img->get_image_len().second;
+	min_trg_size  = img->get_min_targ_size();
+	mix_shift     = img->get_shift();
+	mix_scale     = img->get_scale();
 	gen_mix_filename = img->get_filename();
-	mix_weight   = shared_ptr <double[]> (new double[hyp_cl_amount]);
-	window_size  = 13;
+	mix_weight    = shared_ptr <double[]> (new double[hyp_cl_amount]);
+	window_size   = 13;
 	cout << " mix partition by " << h_classes << " components:" << endl;
 	res_memory_allocation();
 	
@@ -25,22 +26,24 @@ void optional_handler::mixture_handler(shared_ptr < mix_img_obj> img, unsigned h
 	
 }
 
-void optional_handler::network_results_handler(shared_ptr <mix_img_obj> img, unsigned h_classes, string classificationData)
+void optional_handler::network_results_handler(shared_ptr <mix_img_obj> img, unsigned h_classes, int mode, string classificationData)
 {
 	img_mask_list = img->get_mask_list();
 	hyp_cl_amount = img->get_class_amount();
+	m_mode = mode;
 	img_l_x = img->get_image_len().first;
 	img_l_y = img->get_image_len().second;
+	
 	gen_mix_filename = img->get_filename();
 	res_memory_allocation();
 	get_classification_from_file(classificationData);
-
 }
 
 
-void optional_handler::quadtree_handler(shared_ptr <basic_prob_img> img, unsigned h_classes, double acc) {
+void optional_handler::quadtree_handler(shared_ptr <basic_prob_img> img, unsigned h_classes, double acc, int type, int mode) {
 	accuracy = acc;
 	m_image = img;
+	m_mode = mode;
 	img_mask_list = img->get_m_image()->get_mask_list();
 	hyp_cl_amount = img->get_class_amount();
 	raw_image = img->get_m_image()->get_raw_image();
@@ -55,7 +58,7 @@ void optional_handler::quadtree_handler(shared_ptr <basic_prob_img> img, unsigne
 	window_size = 16;
 	
 	res_memory_allocation();
-	q_tree_optimal_redraw_opMP();
+	q_tree_optimal_redraw_opMP(type, 0);
 
 }
 
@@ -63,15 +66,17 @@ void optional_handler::quadtree_handler(shared_ptr <basic_prob_img> img, unsigne
 
 void optional_handler::get_classification_from_file(string classificationData)
 {
-	unsigned i, j;
+	unsigned i, j, buf;
 	ifstream load_classification;
 	load_classification.open(classificationData);
+	cout << "load data" << endl;
 	for (j = 0; j < img_l_y; j++)
-	for (i = 0; i < img_l_x; i++)
-		
-			load_classification >> class_flag[i][j];
-	
+		for (i = 0; i < img_l_x; i++)
+			
+				load_classification >> class_flag[i][j];
+			
 	load_classification.close();
+	cout << "load data ended" << endl;
 }
 
 //выделение памяти под изображение-результат
@@ -254,14 +259,39 @@ void optional_handler::mixture_optimal_redraw_opMP_V2(){
 //раскраска картики - по локальным областям, с использованием квадродеревьев
 //, openMP version
 
-void optional_handler::q_tree_optimal_redraw_opMP(){
-
-    int amount_window_x = img_l_x / window_size , amount_window_y = img_l_y / window_size ;
+void optional_handler::q_tree_optimal_redraw_opMP(int type, int mode){
+	int h_tree = 4;
+	if (mode == 1)
+	{
+		window_size = 1024; 
+		h_tree = 10;
+	}
+    int amount_window_x = img_l_x / int(window_size ) , amount_window_y = img_l_y / int(window_size);
+	if (mode == 0)
+		amount_window_x += amount_window_x - 1; amount_window_y += amount_window_y - 1;
+	cout << amount_window_x << " " << amount_window_y << endl;
     auto begin1 = std::chrono::steady_clock::now();
     #pragma omp parallel
     {
-        quad_tree_handler tree = quad_tree_handler(m_image, window_size, class_flag, 4, accuracy);
-
+        quad_tree_handler tree = quad_tree_handler(m_image, window_size, class_flag, h_tree, mode, accuracy);
+		if(type == 0)
+			tree.set_spatial_order(4, 0);
+		if (type == 1)
+			tree.set_spatial_order(8, 1);
+		if (type == 2)
+			tree.set_spatial_order(6, 2);
+		if (type == 3)
+			tree.set_spatial_order(6, 3);
+		if (type == 4)
+			tree.set_spatial_order(1, 4);
+		if (type == 5)
+			tree.set_spatial_order(1, 5);
+		if (type == 6)
+			tree.set_spatial_order(1, 6);
+		//tree.set_spatial_order(8, 1);
+		//tree.set_spatial_order(6, 0);
+		/*tree.set_spatial_order(8, 0);
+		tree.set_spatial_order(10, 1);*/
         #pragma omp for
         for (int i = 0; i < amount_window_x*amount_window_y; ++i) {
             
@@ -269,18 +299,71 @@ void optional_handler::q_tree_optimal_redraw_opMP(){
 				//cout << "bottom_up_pass" << endl;
                 tree.bottom_up_pass();
 				//cout << "up_down_pass_V2" << endl;
-				tree.up_down_pass_V2();
+				tree.up_down_pass_V4();
+				//tree.up_down_pass_V2();
             // tree.up_down_pass();
                 // возможно, на сюда придется секцию critical
-#pragma omp critical
+//#pragma omp critical
 				{
-					tree.split_image_by_vote();
+					//tree.split_image_by_vote();
 					//tree.split_image_by_max();
+					tree.split_image_by_mul();
+					//tree.write_probs_into_image();
 				}
             
         }
+//#pragma omp critical
+		//tree.classyfy_full_img();
   }
 
+//#pragma omp parallel
+//	{
+//		quad_tree_handler tree = quad_tree_handler(m_image, window_size, class_flag, 4, accuracy);
+//		if (type == 0)
+//			tree.set_spatial_order(4, 0);
+//		if (type == 1)
+//			tree.set_spatial_order(8, 1);
+//		if (type == 2)
+//			tree.set_spatial_order(6, 2);
+//		if (type == 3)
+//			tree.set_spatial_order(6, 3);
+//		if (type == 4)
+//			tree.set_spatial_order(1, 4);
+//		if (type == 5)
+//			tree.set_spatial_order(1, 5);
+//		if (type == 6)
+//			tree.set_spatial_order(1, 6);
+//		//tree.set_spatial_order(8, 1);
+//		//tree.set_spatial_order(6, 0);
+//		/*tree.set_spatial_order(8, 0);
+//		tree.set_spatial_order(10, 1);*/
+//#pragma omp for
+//		for (int i = 0; i < amount_window_x*amount_window_y; ++i) {
+//
+//			tree.set_probabilities(i / amount_window_y, i%amount_window_y);
+//			//cout << "bottom_up_pass" << endl;
+//			tree.bottom_up_pass();
+//			//cout << "up_down_pass_V2" << endl;
+//			tree.up_down_pass_V5();
+//			//tree.up_down_pass_V3();
+//		// tree.up_down_pass();
+//			// возможно, на сюда придется секцию critical
+//#pragma omp critical
+//			{
+//				//tree.split_image_by_vote();
+//				//tree.split_image_by_max();
+//				tree.split_image_by_mul();
+//				//tree.write_probs_into_image();
+//			}
+//
+//		}
+//		//#pragma omp critical
+//				//tree.classyfy_full_img();
+//	}
+	/*quad_tree_handler tree = quad_tree_handler(m_image, window_size, class_flag, 4, accuracy);
+	if (type == 1)
+		tree.set_spatial_order(8, 1);
+	tree.classyfy_full_img();*/
     auto end1 = std::chrono::steady_clock::now();
     auto elapsed_ms1 = std::chrono::duration_cast<std::chrono::milliseconds>(end1 - begin1);
     cout << "elapsed_ms1  " << elapsed_ms1.count() <<endl;
@@ -1077,6 +1160,10 @@ void optional_handler::printInformation_to_image() {
 }
 
 void optional_handler::detect_result_by_mask(string filename, string other_classes) {
+	/*Режимы:
+	1 - целиковое изображение 
+	2 - смесевое
+	3 - кусок - парсинг результата нейросети */
 	std::ofstream vmdelet_out;     //создаем поток 
 	vmdelet_out.open(filename, std::ios::app);
 	std::ofstream faults;     //создаем поток 
@@ -1087,35 +1174,66 @@ void optional_handler::detect_result_by_mask(string filename, string other_class
 	unsigned curr_class;
 	
 	int * f_classes = new int[hyp_cl_amount];
-	int y_len, x_len, i, j, k;
+	double * all_pixels = new double[hyp_cl_amount];
+	double * user_pixels = new double[hyp_cl_amount];
+	double * prod_pixels = new double[hyp_cl_amount];
+	int y_len, x_len, i, j, k, chozed_mode,  id_x_1 , id_x_2 , id_y_1;
+	id_y_1 = 0;
+	id_x_1 = 0;
+	id_x_2 = img_l_x;
+	if (m_mode == 3)
+	{
+		id_x_2 = 1024;
+		id_y_1 = img_l_y - 1024 - 0;
+	}
+	
 	cout << "percentage of correctly classified pixels:" << endl;
+	for (int l = 0; l < hyp_cl_amount; ++l)
+	{
+		f_classes[l] = 0;
+		all_pixels[l] = 0;
+		user_pixels[l] = 0;
+		prod_pixels[l] = 0;
+	}
 	for (k = 0; k < hyp_cl_amount; ++k) {
 		if (img_mask_list[k] != "\"\"")
 		{
-			for (int l = 0; l < hyp_cl_amount; ++l)
-				f_classes[l] = 0;
+			
 			mask_image.Load(img_mask_list[k].c_str());
 			amount_cl_pix = 0;
 			amount_true_pix = 0;
-			cout << "sizes" << endl;
-			cout << img_l_x << " " << img_l_y << endl;
-			cout << mask_image.GetWidth() << mask_image.GetHeight() << endl;
-			for (i = 0; i < img_l_y; i++) {
-				for (j = 0; j < img_l_x; j++) {
-					//cout << img_l_x << " " << img_l_y << endl;
-					curr_class = (unsigned(GetBValue(mask_image.GetPixel(j, i ))) / 255)*(k + 1);
+			
+			for (i = id_y_1; i < img_l_y; i++) {
+				
+				for (j = 0; j < id_x_2; j++) {
+					
+					if ((m_mode == 1) || (m_mode == 2))
+						curr_class = (unsigned(GetBValue(mask_image.GetPixel(j, i))) / 255)*(k + 1);
+					if(m_mode == 3)
+						curr_class = (unsigned(GetBValue(mask_image.GetPixel(j,  1024 -( i -(img_l_y - 1024 - 0)) ))) / 255)*(k + 1);
+					
+					
 					if (curr_class != 0) {
 						amount_cl_pix++;
-						//cout << i << " " << j << class_flag[img_l_x - i - 1][j] << curr_class + 1 << endl;
-						//if (class_flag[img_l_x - i - 1][j] ==( curr_class+1))
-							//для метода смесей на 1 номер класса меньше
-						if (class_flag[j ][img_l_y - i-1] == (curr_class))
-
+						all_pixels[curr_class - 1]++;
+						if((m_mode == 3) /*|| (m_mode == 1)*/)
+							chozed_mode = class_flag[j][i/*img_l_y - i - 1*/];
+						if(m_mode == 2)
+							chozed_mode = class_flag[img_l_x - i - 1][j];
+						if(m_mode == 1)
+							chozed_mode = class_flag[j][img_l_y - i - 1];
+						
+						user_pixels[chozed_mode - 1]++;
+						
+						if (chozed_mode == curr_class)
+						//if (class_flag[img_l_x - i - 1][j] == (curr_class))
+						{
 							amount_true_pix++;
+							prod_pixels[chozed_mode - 1] ++;
+						}
 						else
-							f_classes[class_flag[j ][img_l_y - i -1] - 1] ++;
+							f_classes[chozed_mode - 1] ++;
 					}
-
 				}
 			}
 			mask_image.Detach();
@@ -1129,7 +1247,21 @@ void optional_handler::detect_result_by_mask(string filename, string other_class
 			
 		}	
 	}
+	double all_pix = 0, all_true_pix = 0;
+
+	for (int l = 1; l < hyp_cl_amount-1; ++l)
+	{
+		cout << l << endl;
+		cout << "class prod " << l << ": " << prod_pixels[l] / all_pixels[l] << endl;
+		cout << "class user " << l << ": " << prod_pixels[l] / user_pixels[l] << endl;
+		all_true_pix += prod_pixels[l];
+		all_pix += all_pixels[l];
+	}
+	cout << "overall acc: " << all_true_pix / all_pix << endl;
 	delete[] f_classes;
+	delete[] all_pixels;
+	delete[] user_pixels;
+	delete[] prod_pixels;
 	vmdelet_out.close();   // закрываем файл
 	faults.close();
 }
@@ -1139,24 +1271,41 @@ void optional_handler::detect_result_by_mask(string filename, string other_class
 void optional_handler::printInformation() {
 	unsigned i, j;
 	cout << "finded model:" << "\n";
-	/*cout << " mixture components: " << hyp_cl_amount << "\n";
-	cout << "EM mix_shift values:" << "\n";
-	for (i = 0; i < hyp_cl_amount; i++)
-		cout << mix_shift[i] << "  ";
-	cout << endl;
-	cout << endl;
-	cout << "EM mix_scale values:" << "\n";
-	for (i = 0; i < hyp_cl_amount; i++)
-		cout << mix_scale[i] << "  ";
-	cout << endl;*/
-
+	
 	out.open(split_mix_filename);
-	for (j = 0; j < img_l_y; j++){
-	for (i = 0; i < img_l_x; i++) 
-		//for (j = 0; j < img_l_y; j++)
-			out << class_flag[i][j] << " ";
-		out << std::endl;
+	switch (m_mode) 
+	{
+	case 1:
+	{
+		for (j = 0; j < img_l_y; j++) {
+			for (i = 0; i < img_l_x; i++) {
+				out << class_flag[i][j] << " ";
+			}
+			out << std::endl;
+		}
 	}
+	break;
+	case 2:
+	{
+		for (i = 0; i < img_l_x; i++) {
+			for (j = 0; j < img_l_y; j++)
+				out << class_flag[i][j] << " ";
+			out << std::endl;
+		}
+	}
+	break;
+	case 3:
+	{
+		for (j = img_l_y - 1024; j < img_l_y; j++) {
+			for (i = 0; i < 1024; i++)
+				out << class_flag[i][j] << " ";
+			out << std::endl;
+		}
+	}
+	break;
+	}
+	
+	
 	out.close();
 }
 
@@ -1169,7 +1318,7 @@ double optional_handler::find_med(double* window, int wind_size) {
 	int right = wind_size - 1;
 	if (med_index >= 0) {
 		while (flag) {
-			//cout << "ddd";
+			
 			std::pair<int, int> result = partition(window, left, right, med_index);
 			if (result.first< med_index && result.second > med_index) {
 				flag = false;

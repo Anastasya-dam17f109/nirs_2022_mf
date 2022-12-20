@@ -22,8 +22,8 @@ void initial_prob_img::gen_prob_img_from_obj(shared_ptr<mix_img_obj> image){
 
 // создание объекта через загрузчик-файл +  флаг, необходимо ли считать статистики по изображениям и генерить вероятности
 
-void initial_prob_img::gen_prob_img_from_config(string filename) {
-    m_image      = shared_ptr<mix_img_obj>(new mix_img_obj(filename, true));
+void initial_prob_img::gen_prob_img_from_config(string filename, int mode) {
+    m_image      = shared_ptr<mix_img_obj>(new mix_img_obj(filename, true, mode));
     m_image_len_x  = m_image->get_image_len().first;
     m_image_len_y  = m_image->get_image_len().second;
     m_class_amount = m_image->get_class_amount();
@@ -166,7 +166,7 @@ void initial_prob_img::generate_init_probs_mix_opMP_V2() {
             amount_window_y = 1;
             add_amount_x = 0;
             add_amount_y = 0;
-            window_size = m_layer_size[k];
+            window_size = m_layer_size[2*k];
         }
         int u_new_n = (window_size + add_amount_x) * (window_size + add_amount_y);
         int thr_nmb = 4;
@@ -185,129 +185,284 @@ void initial_prob_img::generate_init_probs_mix_opMP_V2() {
         }
 
         auto begin1 = std::chrono::steady_clock::now();
+		//if ( (m_layer_size[2 * k] > 4))
+		{
 #pragma omp parallel
-        {
-            int x_l = window_size, y_l = window_size, ofset = omp_get_thread_num();
-            int itr, x_min, y_min, j, loc_u_new_n, t, l;
-			double pix_buf, cur_max, summ = 0, last_cur_max = 0, buf_max = 0;
-			bool stop_flag = true;
-			unsigned idx_max = 0;
-            for (l = ofset * m_class_amount; l < ofset * m_class_amount + m_class_amount; ++l)
-                new_weights[l] = 1.0 / double(m_class_amount);
+			{
+				int x_l = window_size, y_l = window_size, ofset = omp_get_thread_num();
+				int itr, x_min, y_min, j, loc_u_new_n, t, l;
+				double pix_buf, cur_max, summ = 0, last_cur_max = 0, buf_max = 0;
+				bool stop_flag = true;
+				unsigned idx_max = 0;
+				for (l = ofset * m_class_amount; l < ofset * m_class_amount + m_class_amount; ++l)
+					new_weights[l] = 1.0 / double(m_class_amount);
 #pragma omp for
-            for (int r = 0; r < amount_window_x; ++r) {
-                x_min = r * window_size;
-                if (r < amount_window_x - 1)
-                    x_l = window_size;
-                else
-                    x_l = window_size + add_amount_x;
+				for (int r = 0; r < amount_window_x; ++r) {
+					x_min = r * window_size;
+					if (r < amount_window_x - 1)
+						x_l = window_size;
+					else
+						x_l = window_size + add_amount_x;
 
-                for (j = 0; j < amount_window_y; ++j) {
-                    y_min = j * window_size;
+					for (j = 0; j < amount_window_y; ++j) {
+						y_min = j * window_size;
 
-                    if (j < amount_window_y - 1)
-                        y_l = window_size;
-                    else
-                        y_l = window_size + add_amount_y;
+						if (j < amount_window_y - 1)
+							y_l = window_size;
+						else
+							y_l = window_size + add_amount_y;
 
-                    itr = 0;
-                    stop_flag = true;
-                    cur_max = 0;
-                    loc_u_new_n = y_l * x_l;
+						itr = 0;
+						stop_flag = true;
+						cur_max = 0;
+						loc_u_new_n = y_l * x_l;
 
-                    while (stop_flag && (itr < 500)) {
-                        ++itr;
+						while (stop_flag && (itr < 500)) {
+							++itr;
 
-                        for (l = ofset * u_new_n; l < ofset * u_new_n + loc_u_new_n; ++l) {
-                            summ = 0;
+							for (l = ofset * u_new_n; l < ofset * u_new_n + loc_u_new_n; ++l) {
+								summ = 0;
 
-                            pix_buf = m_image->get_image()[m_layer_idx[k] +
-                                    (x_min + (l - ofset * u_new_n) / y_l)*m_layer_size[2 * k + 1] + y_min + (l - ofset * u_new_n) % y_l];
-                            for (t = 0; t < m_class_amount; ++t) {
-                                if (m_image->get_mixture_type() == NORMAL)
-                                    summ += new_weights[ofset * m_class_amount + t] * (1 / (mix_scale[t] * sq_pi))
-										*exp(-((pix_buf- mix_shift[t])*(pix_buf - mix_shift[t])) / (2.0 * mix_scale[t] * mix_scale[t]));
-                                else {
-                                    if (m_image->get_mixture_type() == RAYLEIGH)
-                                        summ += new_weights[ofset * m_class_amount + t] * (pix_buf / (mix_scale[t] * mix_scale[t]))
-																* exp(-((pix_buf)*(pix_buf)) / (2.0 * mix_scale[t] * mix_scale[t]));
+								pix_buf = m_image->get_image()[m_layer_idx[k] +
+									(x_min + (l - ofset * u_new_n) / y_l)*m_layer_size[2 * k + 1] + y_min + (l - ofset * u_new_n) % y_l];
+								for (t = 0; t < m_class_amount; ++t) {
+									if (m_image->get_mixture_type() == NORMAL)
+										summ += new_weights[ofset * m_class_amount + t] * (1 / (mix_scale[t] * sq_pi))
+										*exp(-((pix_buf - mix_shift[t])*(pix_buf - mix_shift[t])) / (2.0 * mix_scale[t] * mix_scale[t]));
+									else {
+										if (m_image->get_mixture_type() == RAYLEIGH)
+											summ += new_weights[ofset * m_class_amount + t] * (pix_buf / (mix_scale[t] * mix_scale[t]))
+											* exp(-((pix_buf)*(pix_buf)) / (2.0 * mix_scale[t] * mix_scale[t]));
 
-                                    else {
-                                        if (m_image->get_mixture_type() == LOGNORMAL)
-                                            summ += new_weights[ofset * m_class_amount + t] * (1 / (mix_scale[t] * sq_pi*pix_buf))*exp(-((log(pix_buf)
-                                                                                                                 - mix_shift[t])*(log(pix_buf) - mix_shift[t])) / (2.0 * mix_scale[t] * mix_scale[t]));
-                                    }
-                                }
-                                /*cout << "l  " << summ << " " << pix_buf << " " << layer_idx[k] +
-                                    (x_min + (l - ofset * u_new_n) / y_l)*layer_size[k] + y_min + (l - ofset * u_new_n) % y_l
-                                    << " " << layer_idx[layer_amount-1]+1024*1024 << endl;*/
+										else {
+											if (m_image->get_mixture_type() == LOGNORMAL)
+												summ += new_weights[ofset * m_class_amount + t] * (1 / (mix_scale[t] * sq_pi*pix_buf))*exp(-((log(pix_buf)
+													- mix_shift[t])*(log(pix_buf) - mix_shift[t])) / (2.0 * mix_scale[t] * mix_scale[t]));
+										}
+									}
+									/*cout << "l  " << summ << " " << pix_buf << " " << layer_idx[k] +
+										(x_min + (l - ofset * u_new_n) / y_l)*layer_size[k] + y_min + (l - ofset * u_new_n) % y_l
+										<< " " << layer_idx[layer_amount-1]+1024*1024 << endl;*/
 
-                            }
+								}
 
-                            for (t = 0; t < m_class_amount; ++t) {
-                                if (l == ofset * u_new_n)
-                                    buf_new_weights[ofset * m_class_amount + t] = 0;
-                                if (m_image->get_mixture_type() == NORMAL) 
-                                    new_g_ij[l][t] = new_weights[ofset * m_class_amount + t] * (1 / (mix_scale[t] * sq_pi*summ))
+								for (t = 0; t < m_class_amount; ++t) {
+									if (l == ofset * u_new_n)
+										buf_new_weights[ofset * m_class_amount + t] = 0;
+									if (m_image->get_mixture_type() == NORMAL)
+										new_g_ij[l][t] = new_weights[ofset * m_class_amount + t] * (1 / (mix_scale[t] * sq_pi*summ))
 										* exp(-((pix_buf - mix_shift[t]) * (pix_buf - mix_shift[t])) / (2.0 * mix_scale[t] * mix_scale[t]));
 
-                                else {
-                                    if (m_image->get_mixture_type() == RAYLEIGH)
-                                        new_g_ij[l][t] = new_weights[t] * (pix_buf / (mix_scale[t] * mix_scale[t]))
+									else {
+										if (m_image->get_mixture_type() == RAYLEIGH)
+											new_g_ij[l][t] = new_weights[t] * (pix_buf / (mix_scale[t] * mix_scale[t]))
 											* exp(-(pix_buf * pix_buf) / (2.0 * mix_scale[t] * mix_scale[t]));
 
-                                    else {
-                                        if (m_image->get_mixture_type() == LOGNORMAL) {
-                                            //cout << "l  " << l << endl;
-                                            new_g_ij[l][t] = new_weights[ofset * m_class_amount + t] * (1 / (mix_scale[t] * sq_pi*summ*pix_buf))
-												* exp(-((log(pix_buf) - mix_shift[t]) * (log(pix_buf) - mix_shift[t])) / (2.0 * mix_scale[t] * mix_scale[t]));
+										else {
+											if (m_image->get_mixture_type() == LOGNORMAL) {
+												//cout << "l  " << l << endl;
+												new_g_ij[l][t] = new_weights[ofset * m_class_amount + t] * (1 / (mix_scale[t] * sq_pi*summ*pix_buf))
+													* exp(-((log(pix_buf) - mix_shift[t]) * (log(pix_buf) - mix_shift[t])) / (2.0 * mix_scale[t] * mix_scale[t]));
 
-                                        }
-                                    }
-                                }
-                                buf_new_weights[ofset * m_class_amount + t] += new_g_ij[l][t];
-                                if (l == ofset * u_new_n + loc_u_new_n - 1)
-                                    new_weights[ofset * m_class_amount + t] = buf_new_weights[t] / double(loc_u_new_n);
-                                if (cur_max < abs(new_g_ij[l][t] - new_g_ij_0[l][t]))
-                                    cur_max = abs(new_g_ij[l][t] - new_g_ij_0[l][t]);
-                                new_g_ij_0[l][t] = new_g_ij[l][t];
-                            }
-                        }
+											}
+										}
+									}
+									buf_new_weights[ofset * m_class_amount + t] += new_g_ij[l][t];
+									if (l == ofset * u_new_n + loc_u_new_n - 1)
+										new_weights[ofset * m_class_amount + t] = buf_new_weights[t] / double(loc_u_new_n);
+									if (cur_max < abs(new_g_ij[l][t] - new_g_ij_0[l][t]))
+										cur_max = abs(new_g_ij[l][t] - new_g_ij_0[l][t]);
+									new_g_ij_0[l][t] = new_g_ij[l][t];
+								}
+							}
 
-                        if (stop_flag) {
-                            if (cur_max != 0)
-                                last_cur_max = cur_max;
-                            (cur_max < accuracy) ? stop_flag = false : cur_max = 0;
-                        }
-                    }
+							if (stop_flag) {
+								if (cur_max != 0)
+									last_cur_max = cur_max;
+								(cur_max < accuracy) ? stop_flag = false : cur_max = 0;
+							}
+						}
 #pragma omp critical
-                    {
-                        //if (layer_size[k] == 32)
-                        //cout << "jjjjj" << endl;
+						{
+							//if (layer_size[k] == 32)
+							//cout << "jjjjj" << endl;
 
-                        for (t = ofset * u_new_n; t < ofset * u_new_n + loc_u_new_n; ++t) {
+							for (t = ofset * u_new_n; t < ofset * u_new_n + loc_u_new_n; ++t) {
 
-                            for (l = 0; l < m_class_amount; ++l) {
-                                if (t == ofset * u_new_n)
-                                    //new_weights[l] = mix_prob[l];
-                                    new_weights[ofset * m_class_amount + l] = 1.0 / double(m_class_amount);
-                                m_prob_img[m_init_layer_idx[k] +
-                                        (x_min + (t - ofset * u_new_n) / y_l) * m_layer_size[2 * k + 1] * m_class_amount +
-                                        (y_min + (t - ofset * u_new_n) % y_l) * m_class_amount +
-                                        l] = new_g_ij[t][l];
-                                //if (layer_size[k] == 32)
-                                //cout << t << " " << l << " " << new_g_ij[t][l] << endl;
-                                new_g_ij_0[t][l] = 0;
-                            }
+								for (l = 0; l < m_class_amount; ++l) {
+									if (t == ofset * u_new_n)
+										//new_weights[l] = mix_prob[l];
+										new_weights[ofset * m_class_amount + l] = 1.0 / double(m_class_amount);
+									m_prob_img[m_init_layer_idx[k] +
+										(x_min + (t - ofset * u_new_n) / y_l) * m_layer_size[2 * k + 1] * m_class_amount +
+										(y_min + (t - ofset * u_new_n) % y_l) * m_class_amount +
+										l] = new_g_ij[t][l];
+									/*if (m_layer_size[2 * k] == 4)
+									{
 
-                        }
-                    }
-                }
-            }
-           
+										cout << m_init_layer_idx[k] << " " << k << endl;
+										cout << x_min << " " << (t - ofset * u_new_n) << " " << y_l << endl;
+										cout << y_min << " " << (y_min + (t - ofset * u_new_n)) << endl;
+										cout << new_g_ij[t][l] << endl;
+									}*/
+									/*m_prob_img[m_init_layer_idx[k] +
+									(x_min + (t - ofset * u_new_n) / y_l) * m_layer_size[2 * k + 1] * m_class_amount +
+									(y_min + (t - ofset * u_new_n) % y_l) * m_class_amount +
+									l] = 1.0/double(m_class_amount);*/
+									//if (layer_size[k] == 32)
+									//cout << t << " " << l << " " << new_g_ij[t][l] << endl;
+									new_g_ij_0[t][l] = 0;
+								}
 
-        }
-       
+							}
+						}
+					}
+				}
+
+
+			}
+		}
+//		else
+//		{
+////#pragma omp parallel
+//			
+//				int x_l = window_size, y_l = window_size, ofset = 0;
+//				int itr, x_min, y_min, j, loc_u_new_n, t, l;
+//				double pix_buf, cur_max, summ = 0, last_cur_max = 0, buf_max = 0;
+//				bool stop_flag = true;
+//				unsigned idx_max = 0;
+//				for (l = ofset * m_class_amount; l < ofset * m_class_amount + m_class_amount; ++l)
+//					new_weights[l] = 1.0 / double(m_class_amount);
+////#pragma omp for
+//				for (int r = 0; r < amount_window_x; ++r) {
+//					x_min = r * window_size;
+//					if (r < amount_window_x - 1)
+//						x_l = window_size;
+//					else
+//						x_l = window_size + add_amount_x;
+//
+//					for (j = 0; j < amount_window_y; ++j) {
+//						y_min = j * window_size;
+//
+//						if (j < amount_window_y - 1)
+//							y_l = window_size;
+//						else
+//							y_l = window_size + add_amount_y;
+//
+//						itr = 0;
+//						stop_flag = true;
+//						cur_max = 0;
+//						loc_u_new_n = y_l * x_l;
+//
+//						while (stop_flag && (itr < 500)) {
+//							++itr;
+//
+//							for (l = ofset * u_new_n; l < ofset * u_new_n + loc_u_new_n; ++l) {
+//								summ = 0;
+//
+//								pix_buf = m_image->get_image()[m_layer_idx[k] +
+//									(x_min + (l - ofset * u_new_n) / y_l)*m_layer_size[2 * k + 1] + y_min + (l - ofset * u_new_n) % y_l];
+//								for (t = 0; t < m_class_amount; ++t) {
+//									if (m_image->get_mixture_type() == NORMAL)
+//										summ += new_weights[ofset * m_class_amount + t] * (1 / (mix_scale[t] * sq_pi))
+//										*exp(-((pix_buf - mix_shift[t])*(pix_buf - mix_shift[t])) / (2.0 * mix_scale[t] * mix_scale[t]));
+//									else {
+//										if (m_image->get_mixture_type() == RAYLEIGH)
+//											summ += new_weights[ofset * m_class_amount + t] * (pix_buf / (mix_scale[t] * mix_scale[t]))
+//											* exp(-((pix_buf)*(pix_buf)) / (2.0 * mix_scale[t] * mix_scale[t]));
+//
+//										else {
+//											if (m_image->get_mixture_type() == LOGNORMAL)
+//												summ += new_weights[ofset * m_class_amount + t] * (1 / (mix_scale[t] * sq_pi*pix_buf))*exp(-((log(pix_buf)
+//													- mix_shift[t])*(log(pix_buf) - mix_shift[t])) / (2.0 * mix_scale[t] * mix_scale[t]));
+//										}
+//									}
+//									/*cout << "l  " << summ << " " << pix_buf << " " << layer_idx[k] +
+//										(x_min + (l - ofset * u_new_n) / y_l)*layer_size[k] + y_min + (l - ofset * u_new_n) % y_l
+//										<< " " << layer_idx[layer_amount-1]+1024*1024 << endl;*/
+//
+//								}
+//
+//								for (t = 0; t < m_class_amount; ++t) {
+//									if (l == ofset * u_new_n)
+//										buf_new_weights[ofset * m_class_amount + t] = 0;
+//									if (m_image->get_mixture_type() == NORMAL)
+//										new_g_ij[l][t] = new_weights[ofset * m_class_amount + t] * (1 / (mix_scale[t] * sq_pi*summ))
+//										* exp(-((pix_buf - mix_shift[t]) * (pix_buf - mix_shift[t])) / (2.0 * mix_scale[t] * mix_scale[t]));
+//
+//									else {
+//										if (m_image->get_mixture_type() == RAYLEIGH)
+//											new_g_ij[l][t] = new_weights[t] * (pix_buf / (mix_scale[t] * mix_scale[t]))
+//											* exp(-(pix_buf * pix_buf) / (2.0 * mix_scale[t] * mix_scale[t]));
+//
+//										else {
+//											if (m_image->get_mixture_type() == LOGNORMAL) {
+//												//cout << "l  " << l << endl;
+//												new_g_ij[l][t] = new_weights[ofset * m_class_amount + t] * (1 / (mix_scale[t] * sq_pi*summ*pix_buf))
+//													* exp(-((log(pix_buf) - mix_shift[t]) * (log(pix_buf) - mix_shift[t])) / (2.0 * mix_scale[t] * mix_scale[t]));
+//
+//											}
+//										}
+//									}
+//									buf_new_weights[ofset * m_class_amount + t] += new_g_ij[l][t];
+//									if (l == ofset * u_new_n + loc_u_new_n - 1)
+//										new_weights[ofset * m_class_amount + t] = buf_new_weights[t] / double(loc_u_new_n);
+//									if (cur_max < abs(new_g_ij[l][t] - new_g_ij_0[l][t]))
+//										cur_max = abs(new_g_ij[l][t] - new_g_ij_0[l][t]);
+//									new_g_ij_0[l][t] = new_g_ij[l][t];
+//								}
+//							}
+//
+//							if (stop_flag) {
+//								if (cur_max != 0)
+//									last_cur_max = cur_max;
+//								(cur_max < accuracy) ? stop_flag = false : cur_max = 0;
+//							}
+//						}
+////#pragma omp critical
+//						
+//							//if (layer_size[k] == 32)
+//						cout << "jjjjj" << endl;
+//
+//							for (t = ofset * u_new_n; t < ofset * u_new_n + loc_u_new_n; ++t) {
+//
+//								for (l = 0; l < m_class_amount; ++l) {
+//									if (t == ofset * u_new_n)
+//										//new_weights[l] = mix_prob[l];
+//										new_weights[ofset * m_class_amount + l] = 1.0 / double(m_class_amount);
+//									m_prob_img[m_init_layer_idx[k] +
+//										(x_min + (t - ofset * u_new_n) / y_l) * m_layer_size[2 * k + 1] * m_class_amount +
+//										(y_min + (t - ofset * u_new_n) % y_l) * m_class_amount +
+//										l] = new_g_ij[t][l];
+//									if (m_layer_size[2 * k] == 4)
+//									{
+//
+//										cout << m_init_layer_idx[k] << " " << k << endl;
+//										cout << x_min + (t - ofset * u_new_n) <<  endl;
+//										cout << y_min + (y_min + (t - ofset * u_new_n)) << endl;
+//										cout << new_g_ij[t][l] << endl;
+//										cout << m_prob_img[m_init_layer_idx[k] +
+//											(x_min + (t - ofset * u_new_n) / y_l) * m_layer_size[2 * k + 1] * m_class_amount +
+//											(y_min + (t - ofset * u_new_n) % y_l) * m_class_amount +
+//											l] << endl;
+//									}
+//									/*m_prob_img[m_init_layer_idx[k] +
+//									(x_min + (t - ofset * u_new_n) / y_l) * m_layer_size[2 * k + 1] * m_class_amount +
+//									(y_min + (t - ofset * u_new_n) % y_l) * m_class_amount +
+//									l] = 1.0/double(m_class_amount);*/
+//									//if (layer_size[k] == 32)
+//									//cout << t << " " << l << " " << new_g_ij[t][l] << endl;
+//									new_g_ij_0[t][l] = 0;
+//								}
+//
+//							}
+//						
+//					}
+//				}
+//
+//
+//			
+//		}
         for (int t = 0; t < u_new_n * thr_nmb; ++t) {
             delete[] new_g_ij[t];
             delete[] new_g_ij_0[t];

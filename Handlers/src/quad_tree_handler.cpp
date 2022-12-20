@@ -27,7 +27,7 @@ quad_tree_handler::quad_tree_handler(shared_ptr<basic_prob_img> image, unsigned*
 	p_xs_xs1 = shared_ptr<double[]>(new double[class_amount * class_amount]);
 	p_xs_layer = shared_ptr<double[]>(new double[m_layer_amount * class_amount]);
 
-	int summ = 0,  j;
+	int summ = 0, j;
 	for (i = 0; i < m_layer_amount; ++i) {
 		layer_size[i] = pow(2, i + 1);
 		layer_idx[i] = summ;
@@ -53,21 +53,21 @@ quad_tree_handler::quad_tree_handler(shared_ptr<basic_prob_img> image, unsigned*
 		layer_order[3][i]->get_points_for_curve();
 
 		// спирали
-		layer_order[4][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 2, false));
+		/*layer_order[4][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 2, false));
 		layer_order[4][i]->get_points_for_curve();
 		layer_order[5][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 0, false));
+		layer_order[5][i]->get_points_for_curve();*/
+
+		layer_order[6][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 1, false));
+		layer_order[6][i]->get_points_for_curve();
+
+		layer_order[4][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, false));
+		layer_order[4][i]->get_points_for_curve();
+		layer_order[5][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, true));
 		layer_order[5][i]->get_points_for_curve();
 
-		layer_order[8][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 1, false));
-		layer_order[8][i]->get_points_for_curve();
-
-		layer_order[6][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, false));
-		layer_order[6][i]->get_points_for_curve();
-		layer_order[7][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, true));
+		layer_order[7][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 2, true));
 		layer_order[7][i]->get_points_for_curve();
-
-		layer_order[9][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 2, true));
-		layer_order[9][i]->get_points_for_curve();
 		/*layer_order[10][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 2, false));
 		layer_order[10][i]->get_points_for_curve();*/
 
@@ -120,26 +120,38 @@ quad_tree_handler::quad_tree_handler(shared_ptr<basic_prob_img> image, unsigned*
 
 //
 
-quad_tree_handler::quad_tree_handler(shared_ptr<basic_prob_img> image, int size, unsigned** cnt, int _h_tree, double acc) {
-	m_image = image;
+quad_tree_handler::quad_tree_handler(shared_ptr<basic_prob_img> image, int size, unsigned** cnt, int _h_tree, int mode, double acc) {
+	m_image  = image;
+	m_mode   = mode;
 	m_h_tree = _h_tree;
 	accuracy = acc;
 	m_init_prob_img = m_image->get_image();
-	init_layer_idx = m_image->get_init_layer_idx();
+	init_layer_idx  = m_image->get_init_layer_idx();
 	init_layer_size = m_image->get_init_layer_size();
-	class_amount = m_image->get_class_amount();
-	pix_cl_amount = shared_ptr <int[]>(new int[class_amount]);
-	idx_max = shared_ptr <unsigned[]>(new unsigned[m_layer_ord_amount]);
-	buf_max = shared_ptr <double[]>(new double[m_layer_ord_amount]);
+	class_amount    = m_image->get_class_amount();
+	pix_cl_amount   = shared_ptr <int[]>(new int[class_amount]);
+	if (m_mode == 0)
+		wind_offset = 2;
 	set_dest_cnt(cnt, size);
 	int i = 2;
 	while (i < size) {
 		i *= 2;
 		m_layer_amount++;
 	}
-
+	cout << m_layer_amount << endl;
 	layer_size = shared_ptr <int[]>(new int[m_layer_amount]);
 	layer_idx = shared_ptr <int[]>(new int[m_layer_amount]);
+
+
+}
+
+//
+
+void quad_tree_handler::set_spatial_order(int order_amount, int type)
+{
+	m_layer_ord_amount = order_amount;
+	idx_max = shared_ptr <unsigned[]>(new unsigned[m_layer_ord_amount]);
+	buf_max = shared_ptr <double[]>(new double[m_layer_ord_amount]);
 	layer_order = shared_ptr < shared_ptr<shared_ptr<Basic_curve>[]>[]>(new  shared_ptr<shared_ptr<Basic_curve>[]>[m_layer_ord_amount]);
 	for (int i = 0; i < m_layer_ord_amount; ++i)
 		layer_order[i] = shared_ptr<shared_ptr<Basic_curve>[]>(new shared_ptr<Basic_curve>[m_layer_amount]);
@@ -153,68 +165,160 @@ quad_tree_handler::quad_tree_handler(shared_ptr<basic_prob_img> image, int size,
 		layer_size[i] = pow(2, i + 1);
 		layer_idx[i] = summ;
 		summ += layer_size[i] * layer_size[i];
-		//layer[i] = shared_ptr<shared_ptr<shared_ptr<Node>[]>[]>(new shared_ptr<shared_ptr<Node>[]>[layer_size[i]]);
-		//for (int j = 0; j < layer_size[i]; j++)
-			//layer[i][j] = shared_ptr<shared_ptr<Node>[]>(new shared_ptr<Node>[layer_size[i]]);
 
 		// получение порядков - последовательности пикселей - на каждом слое
+		if ((type == 0) || (type == 1) || (type == 2))
+		{
+			layer_order[0][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 0, false));
+			layer_order[0][i]->get_points_for_curve();
+			layer_order[1][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 0, true));
+			layer_order[1][i]->get_points_for_curve();
 
-		/*for (int j = 0; j < 4; ++j) {
-			layer_order[j][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], j, false));
-			layer_order[j][i]->get_points_for_curve();
-		}*/
-		layer_order[0][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 0, false));
-		layer_order[0][i]->get_points_for_curve();
-		layer_order[1][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 0, true));
-		layer_order[1][i]->get_points_for_curve();
+			layer_order[2][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 2, false));
+			layer_order[2][i]->get_points_for_curve();
+			layer_order[3][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 2, true));
+			layer_order[3][i]->get_points_for_curve();
 
-		layer_order[2][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 2, false));
-		layer_order[2][i]->get_points_for_curve();
-		layer_order[3][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 2, true));
-		layer_order[3][i]->get_points_for_curve();
+			// спирали
+			if (type == 1)
+			{
+				layer_order[4][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, false));
+				layer_order[4][i]->get_points_for_curve();
+				layer_order[5][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, true));
+				layer_order[5][i]->get_points_for_curve();
+				layer_order[6][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 2, false));
+				layer_order[6][i]->get_points_for_curve();
+				layer_order[7][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 0, false));
+				layer_order[7][i]->get_points_for_curve();
+			}
 
-		// спирали
-		layer_order[4][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 2, false));
-		layer_order[4][i]->get_points_for_curve();
-		layer_order[5][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 0, false));
-		layer_order[5][i]->get_points_for_curve();
-
-		layer_order[8][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 1, false));
-		layer_order[8][i]->get_points_for_curve();
-
-		layer_order[6][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, false));
-		layer_order[6][i]->get_points_for_curve();
-		layer_order[7][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, true));
-		layer_order[7][i]->get_points_for_curve();
-
-		layer_order[9][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 2, true));
-		layer_order[9][i]->get_points_for_curve();
-		/*layer_order[10][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 2, false));
-		layer_order[10][i]->get_points_for_curve();*/
+			/*layer_order[6][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 1, false));
+			layer_order[6][i]->get_points_for_curve();*/
+			if (type == 2)
+			{
+				layer_order[4][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, false));
+				layer_order[4][i]->get_points_for_curve();
+				layer_order[5][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, true));
+				layer_order[5][i]->get_points_for_curve();
+			}
+			/*layer_order[7][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 2, true));
+			layer_order[7][i]->get_points_for_curve();*/
+			/*layer_order[10][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 2, false));
+			layer_order[10][i]->get_points_for_curve();*/
 
 
-		/*layer_order[6][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i],3, false));
-		layer_order[6][i]->get_points_for_curve();
+			/*layer_order[6][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i],3, false));
+			layer_order[6][i]->get_points_for_curve();
 
-		layer_order[7][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i],3,true));
-		layer_order[7][i]->get_points_for_curve();
-		*/
+			layer_order[7][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i],3,true));
+			layer_order[7][i]->get_points_for_curve();
+			*/
 
-		/*layer_order[10][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 1, false));
-		layer_order[10][i]->get_points_for_curve();
-		layer_order[11][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 3, false));
-		layer_order[11][i]->get_points_for_curve();*/
+			/*layer_order[10][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 1, false));
+			layer_order[10][i]->get_points_for_curve();
+			layer_order[11][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 3, false));
+			layer_order[11][i]->get_points_for_curve();*/
 
-		/*layer_order[11][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i],1,true));
-		layer_order[11][i]->get_points_for_curve();
-		*/
+			/*layer_order[11][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i],1,true));
+			layer_order[11][i]->get_points_for_curve();
+			*/
 
-		/*for (int j = 6; j < 6+4; ++j) {
-			layer_order[j][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], j-6));
-			layer_order[j][i]->get_points_for_curve();
-			layer_order[j][i]->reverse_curve();
-		}*/
-		//p_xs_layer[i] = shared_ptr<double[]>(new double[class_amount]);
+			/*for (int j = 6; j < 6+4; ++j) {
+				layer_order[j][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], j-6));
+				layer_order[j][i]->get_points_for_curve();
+				layer_order[j][i]->reverse_curve();
+			}*/
+		}
+		else
+		{
+			if ((type == 3))
+			{
+				if (i == 0)
+				{
+					layer_order[0][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, true));
+					layer_order[0][i]->get_points_for_curve();
+					layer_order[1][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 0, false));
+					layer_order[1][i]->get_points_for_curve();
+					layer_order[2][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 1, false));
+					layer_order[2][i]->get_points_for_curve();
+					layer_order[3][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 0, false));
+					layer_order[3][i]->get_points_for_curve();
+					layer_order[4][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 0, false));
+					layer_order[4][i]->get_points_for_curve();
+					layer_order[5][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, true));
+					layer_order[5][i]->get_points_for_curve();
+				}
+
+				if (i == 1)
+				{
+					layer_order[0][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 0, false));
+					layer_order[0][i]->get_points_for_curve();
+					layer_order[1][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, false));
+					layer_order[1][i]->get_points_for_curve();
+					layer_order[2][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, true));
+					layer_order[2][i]->get_points_for_curve();
+					layer_order[3][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 1, false));
+					layer_order[3][i]->get_points_for_curve();
+					layer_order[4][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 2, false));
+					layer_order[4][i]->get_points_for_curve();
+					layer_order[5][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 1, false));
+					layer_order[5][i]->get_points_for_curve();
+				}
+
+				if (i == 2)
+				{
+					layer_order[0][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 0, true));
+					layer_order[0][i]->get_points_for_curve();
+
+					layer_order[1][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, true));
+					layer_order[1][i]->get_points_for_curve();
+
+					layer_order[2][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 2, false));
+					layer_order[2][i]->get_points_for_curve();
+
+					layer_order[3][i] = shared_ptr<Helix_curve>(new Helix_curve(layer_size[i], 2, false));
+					layer_order[3][i]->get_points_for_curve();
+
+					layer_order[4][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 2, true));
+					layer_order[4][i]->get_points_for_curve();
+
+					layer_order[5][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 2, false));
+					layer_order[5][i]->get_points_for_curve();
+				}
+				if (i == 3)
+				{
+					layer_order[0][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 2, false));
+					layer_order[0][i]->get_points_for_curve();
+					layer_order[1][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 2, false));
+					layer_order[1][i]->get_points_for_curve();
+					layer_order[2][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 2, false));
+					layer_order[2][i]->get_points_for_curve();
+					layer_order[3][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 3, false));
+					layer_order[3][i]->get_points_for_curve();
+
+					layer_order[4][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 0, false));
+					layer_order[4][i]->get_points_for_curve();
+
+					layer_order[5][i] = shared_ptr<Hilbert_curve>(new Hilbert_curve(layer_size[i], 3, false));
+					layer_order[5][i]->get_points_for_curve();
+				}
+			}
+			if ((type == 4))
+			{
+				layer_order[0][i] = shared_ptr<combine_curve>(new combine_curve(layer_size[i], 0, false));
+				layer_order[0][i]->get_points_for_curve();
+			}
+			if ((type == 5))
+			{
+				layer_order[0][i] = shared_ptr<combine_curve>(new combine_curve(layer_size[i], 1, false));
+				layer_order[0][i]->get_points_for_curve();
+			}
+			if ((type == 6))
+			{
+				layer_order[0][i] = shared_ptr<Zig_zag_curve>(new Zig_zag_curve(layer_size[i], 0, false));
+				layer_order[0][i]->get_points_for_curve();
+			}
+		}
 		if (i == 0)
 			for (int j = 0; j < class_amount; ++j)
 				p_xs_layer[i * class_amount + j] = m_image->get_cl_probs()[j];
@@ -222,8 +326,6 @@ quad_tree_handler::quad_tree_handler(shared_ptr<basic_prob_img> image, int size,
 			for (int j = 0; j < class_amount; ++j)
 				p_xs_layer[i * class_amount + j] = 0;
 	}
-	//for (int i = 0; i < class_amount; ++i)
-		//p_xs_xs1[i] = shared_ptr<double[]>(new double[class_amount]);
 
 	layer = new Node[summ];
 	m_root = shared_ptr<Node>(new Node);
@@ -413,7 +515,7 @@ void quad_tree_handler::p_xs_layer_generator() {
 void quad_tree_handler::bottom_up_pass() {
 	long double prod_buf, sum_buf;
 	double summ;
-	int layer_offset = m_image->get_layer_amount() - m_layer_amount;
+	int layer_offset = m_image->get_layer_amount() - m_layer_amount ;
 	int i, j, k, l, t, r;
 	for (i = m_layer_amount - 1; i > -1; i--) {
 		// обработка листового слоя : p_xs_ds=p_xs_ys
@@ -455,34 +557,33 @@ void quad_tree_handler::bottom_up_pass() {
 						//}
 						layer[layer_idx[i] + j * layer_size[i] + k].p_xs_ds[l] =
 							m_init_prob_img[init_layer_idx[layer_offset + i] +
-							(m_l_coner.first*layer_size[i] + j)* init_layer_size[2 * (layer_offset + i )+ 1] * class_amount +
-							(m_l_coner.second*layer_size[i] + k)* class_amount + l] * prod_buf;
-						/*cout << init_prob_img[init_layer_idx[layer_offset + i] +
-							(l_coner.first*layer_size[i] + j)* init_layer_size[layer_offset + i] * class_amount +
-							(l_coner.second*layer_size[i] + k)* class_amount + l] << endl;*/
-							/*layer[i][j][k]->p_xs_ys[l] * prod_buf;*/
+							(m_l_coner.first*layer_size[i] / wind_offset + j)* init_layer_size[2 * (layer_offset + i) + 1] * class_amount +
+							(m_l_coner.second*layer_size[i] / wind_offset + k)* class_amount + l] * prod_buf;
+						
 						summ += layer[layer_idx[i] + j * layer_size[i] + k].p_xs_ds[l];
 					}
 					for (l = 0; l < class_amount; l++)
-					{
-
 						layer[layer_idx[i] + j * layer_size[i] + k].p_xs_ds[l] /= summ;
-
-					}
+					
 					for (l = 0; l < m_layer_ord_amount; l++)
 						layer[layer_idx[i] + j * layer_size[i] + k].observed[l] = false;
 				}
 			}
 		}
 		else {
+			
 			for (j = 0; j < layer_size[i]; j++)
 				for (k = 0; k < layer_size[i]; k++) {
 					for (l = 0; l < class_amount; l++)
+					{
 						//layer[i][j][k]->p_xs_ds[l] = layer[i][j][k]->p_xs_ys[l] ;
+						
 						layer[layer_idx[i] + j * layer_size[i] + k].p_xs_ds[l] =
-						m_init_prob_img[init_layer_idx[layer_offset + i] +
-						(m_l_coner.first*layer_size[i] + j)* init_layer_size[2 * (layer_offset + i)+1] * class_amount +
-						(m_l_coner.second*layer_size[i] + k)* class_amount + l];
+							m_init_prob_img[init_layer_idx[layer_offset + i] +
+							(m_l_coner.first * layer_size[i] / wind_offset + j)* init_layer_size[2 * (layer_offset + i) + 1] * class_amount +
+							(m_l_coner.second * layer_size[i] / wind_offset + k)* class_amount + l];
+						
+					}
 					for (l = 0; l < m_layer_ord_amount; l++)
 						layer[layer_idx[i] + j * layer_size[i] + k].observed[l] = false;
 				}
@@ -497,15 +598,16 @@ void quad_tree_handler::bottom_up_pass() {
 					for (t = 0; t < class_amount; t++) {
 						for (r = 0; r < class_amount; r++) {
 							if (i != 0)
-								layer[layer_idx[i] + j * layer_size[i] + k].p_xs_cs_ds[l* class_amount* class_amount + t* class_amount + r]
+								layer[layer_idx[i] + j * layer_size[i] + k].p_xs_cs_ds[l* class_amount* class_amount + t * class_amount + r]
 								= layer[layer_idx[i] + j * layer_size[i] + k].p_xs_ds[l] * p_xs_xs1[l * class_amount + t]
 								* p_xs_xs1[l * class_amount + r] * p_xs_layer[i * class_amount + r] * p_xs_layer[(i - 1) * class_amount + t]
 								/ (p_xs_layer[i * class_amount + l] * p_xs_layer[i * class_amount + l]);
 							else
 								layer[layer_idx[i] + j * layer_size[i] + k].p_xs_cs_ds[l* class_amount* class_amount + t * class_amount + r]
 								= layer[layer_idx[i] + j * layer_size[i] + k].p_xs_ds[l]
-								* p_xs_xs1[l * class_amount + r] * p_xs_layer[i * class_amount + r] 
-								/ (p_xs_layer[i * class_amount + l] * p_xs_layer[i * class_amount +   l]);
+								* p_xs_xs1[l * class_amount + r] * p_xs_layer[i * class_amount + r]
+								/ (p_xs_layer[i * class_amount + l] * p_xs_layer[i * class_amount + l]);
+							
 							summ += layer[layer_idx[i] + j * layer_size[i] + k].p_xs_cs_ds[l * class_amount * class_amount + t * class_amount + r];
 						}
 					}
@@ -514,6 +616,7 @@ void quad_tree_handler::bottom_up_pass() {
 					for (t = 0; t < class_amount; t++)
 						for (r = 0; r < class_amount; r++)
 							layer[layer_idx[i] + j * layer_size[i] + k].p_xs_cs_ds[l* class_amount * class_amount + t * class_amount + r] /= summ;
+
 				for (l = 0; l < m_layer_ord_amount; l++)
 					layer[layer_idx[i] + j * layer_size[i] + k].observed[l] = false;
 			}
@@ -548,13 +651,17 @@ void quad_tree_handler::up_down_pass() {
 						for (k = 0; k < class_amount; ++k) {
 							layer[idx_L].p_xs_Y[l * class_amount + k] = 0;
 							for (t = 0; t < class_amount; ++t)
+							
 								layer[idx_L].p_xs_Y[l * class_amount + k] += layer[idx_L].p_xs_cs_ds[k* class_amount* class_amount + 0 * class_amount + t]
 								* layer[idx_L].p_xs_Y[l * class_amount + t];
 							sum += layer[idx_L].p_xs_Y[l * class_amount + k];
 
 						}
 						for (k = 0; k < class_amount; ++k)
+						{
 							layer[idx_L].p_xs_Y[l * class_amount + k] /= sum;
+							
+						}
 
 					}
 					else {
@@ -563,7 +670,7 @@ void quad_tree_handler::up_down_pass() {
 							layer[idx_L].p_xs_Y[l * class_amount + k] = 0;
 							for (t = 0; t < class_amount; ++t)
 								layer[idx_L].p_xs_Y[l * class_amount + k]
-									+= layer[idx_L].p_xs_cs_ds[k* class_amount* class_amount + 0 * class_amount + t];
+								+= layer[idx_L].p_xs_cs_ds[k* class_amount* class_amount + 0 * class_amount + t];
 
 							sum += layer[idx_L].p_xs_Y[l * class_amount + k];
 						}
@@ -588,8 +695,8 @@ void quad_tree_handler::up_down_pass() {
 							for (t = 0; t < class_amount; ++t)
 								for (r = 0; r < class_amount; ++r)
 									layer[idx_L].p_xs_Y[l * class_amount + k] += layer[idx_L].p_xs_cs_ds[k* class_amount* class_amount + r * class_amount + t]
-										* layer[layer_idx[i] + buf1.x * layer_size[i] + buf1.y].p_xs_Y[l * class_amount + t]
-										* layer[idx_L].parent->p_xs_Y[l * class_amount + r];
+									* layer[layer_idx[i] + buf1.x * layer_size[i] + buf1.y].p_xs_Y[l * class_amount + t]
+									* layer[idx_L].parent->p_xs_Y[l * class_amount + r];
 							sum += layer[idx_L].p_xs_Y[l * class_amount + k];
 						}
 						for (k = 0; k < class_amount; ++k)
@@ -601,7 +708,7 @@ void quad_tree_handler::up_down_pass() {
 							layer[idx_L].p_xs_Y[l * class_amount + k] = 0;
 							for (t = 0; t < class_amount; ++t)
 								layer[idx_L].p_xs_Y[l * class_amount + k] += layer[idx_L].p_xs_cs_ds[k* class_amount* class_amount + t * class_amount + 0]
-									* layer[idx_L].parent->p_xs_Y[l * class_amount + t];
+								* layer[idx_L].parent->p_xs_Y[l * class_amount + t];
 							sum += layer[idx_L].p_xs_Y[l * class_amount + k];
 						}
 						for (k = 0; k < class_amount; ++k)
@@ -627,9 +734,10 @@ void quad_tree_handler::up_down_pass_V2() {
 	double max_dev;
 
 	int l, i, j, k, t, r, idx_L;
-	for (l = 0; l < m_layer_ord_amount; ++l) {
 
-		for (i = m_layer_amount - m_h_tree; i < m_layer_amount; i++) {
+
+	for (i = m_layer_amount - m_h_tree; i < m_layer_amount; i++) {
+		for (l = 0; l < m_layer_ord_amount; ++l) {
 			// обработка начального слоя - отличие в том, что у этих пикселей нет родителей
 			if (i == 0) {
 
@@ -660,17 +768,21 @@ void quad_tree_handler::up_down_pass_V2() {
 						for (k = 0; k < class_amount; ++k) {
 							layer[idx_L].p_xs_Y[l * class_amount + k] = 0;
 							for (t = 0; t < class_amount; ++t)
+							{
 								layer[idx_L].p_xs_Y[l * class_amount + k]
 									+= layer[idx_L].p_xs_cs_ds[k* class_amount* class_amount + 0 * class_amount + t];
+								//cout << layer[idx_L].p_xs_cs_ds[k* class_amount* class_amount + 0 * class_amount + t] << endl;
+							}
 
 							sum += layer[idx_L].p_xs_Y[l * class_amount + k];
 						}
 						for (k = 0; k < class_amount; ++k) {
 							layer[idx_L].p_xs_Y[l * class_amount + k] /= sum;
 							layer[idx_L].observed[l] = true;
+							//cout << layer[idx_L].p_xs_Y[l * class_amount + k] << endl;
 						}
 					}
-				}				
+				}
 			}
 			// обработка промежуточных слоев -  у этих пикселей родители есть, поэтому идет  отличие в формулах
 			else {
@@ -699,7 +811,7 @@ void quad_tree_handler::up_down_pass_V2() {
 								layer[idx_L].p_xs_Y[l * class_amount + k] /= sum;
 								layer[idx_L].observed[l] = true;
 								if (abs(layer[idx_L].p_xs_Y[l * class_amount + k] -
-											layer[idx_L].parent->p_xs_Y[l * class_amount + k]) > max_dev)
+									layer[idx_L].parent->p_xs_Y[l * class_amount + k]) > max_dev)
 									max_dev = abs(layer[idx_L].p_xs_Y[l * class_amount + k] -
 										layer[idx_L].parent->p_xs_Y[l * class_amount + k]);
 
@@ -711,7 +823,7 @@ void quad_tree_handler::up_down_pass_V2() {
 								layer[idx_L].p_xs_Y[l * class_amount + k] = 0;
 								for (t = 0; t < class_amount; ++t)
 									layer[idx_L].p_xs_Y[l * class_amount + k] += layer[idx_L].p_xs_cs_ds[k* class_amount* class_amount + t * class_amount + 0]
-											* layer[idx_L].parent->p_xs_Y[l * class_amount + t];
+									* layer[idx_L].parent->p_xs_Y[l * class_amount + t];
 								sum += layer[idx_L].p_xs_Y[l * class_amount + k];
 							}
 							for (k = 0; k < class_amount; ++k) {
@@ -727,7 +839,7 @@ void quad_tree_handler::up_down_pass_V2() {
 
 						if (max_dev < accuracy) {
 							int counter = 1, len = 1, id_i, id_j;
-						//	if(i >( m_layer_amount - m_h_tree + 1))
+							//if(i >( m_layer_amount - m_h_tree + 1))
 							while (i + counter != m_layer_amount) {
 								len *= 2;
 								for (id_i = 0; id_i < len; id_i++) {
@@ -763,6 +875,618 @@ void quad_tree_handler::up_down_pass_V2() {
 	}
 }
 
+//
+
+void quad_tree_handler::up_down_pass_V3() {
+	Point buf, buf1;
+	double sum;
+	double max_dev;
+
+	int l, i, j, k, t, r, idx_L;
+
+
+	for (i = m_layer_amount - m_h_tree; i < m_layer_amount; i++) {
+		for (l = 0; l < m_layer_ord_amount; ++l) {
+			// обработка начального слоя - отличие в том, что у этих пикселей нет родителей
+			if (i == 0) {
+
+				for (j = 0; j < layer_size[i] * layer_size[i]; j++) {
+					buf = layer_order[l][i]->get_points()[j];
+					sum = 0;
+					idx_L = layer_idx[i] + buf.x * layer_size[i] + buf.y;
+
+					if (j != 0) {
+						buf1 = layer_order[l][i]->get_points()[j - 1];
+						sum = 0;
+						//layer[i][buf1.x][buf1.y]->p_xs_Y[0][0] = 0;
+						for (k = 0; k < class_amount; ++k) {
+							layer[idx_L].p_xs_Y[l * class_amount + k] = 0;
+							for (t = 0; t < class_amount; ++t)
+								layer[idx_L].p_xs_Y[l * class_amount + k] += layer[idx_L].p_xs_cs_ds[k* class_amount* class_amount + 0 * class_amount + t]
+								* layer[layer_idx[i] + buf1.x * layer_size[i] + buf1.y].p_xs_Y[l * class_amount + t];
+							sum += layer[idx_L].p_xs_Y[l * class_amount + k];
+
+						}
+						for (k = 0; k < class_amount; ++k) {
+							layer[idx_L].p_xs_Y[l * class_amount + k] /= sum;
+							layer[idx_L].observed[l] = true;
+						}
+					}
+					else {
+
+						for (k = 0; k < class_amount; ++k) {
+							layer[idx_L].p_xs_Y[l * class_amount + k] = 0;
+							for (t = 0; t < class_amount; ++t)
+								layer[idx_L].p_xs_Y[l * class_amount + k]
+								+= layer[idx_L].p_xs_cs_ds[k* class_amount* class_amount + 0 * class_amount + t];
+
+							sum += layer[idx_L].p_xs_Y[l * class_amount + k];
+						}
+						for (k = 0; k < class_amount; ++k) {
+							layer[idx_L].p_xs_Y[l * class_amount + k] /= sum;
+							layer[idx_L].observed[l] = true;
+						}
+					}
+				}
+			}
+			// обработка промежуточных слоев -  у этих пикселей родители есть, поэтому идет  отличие в формулах
+			else {
+				for (j = 0; j < layer_size[i] * layer_size[i]; j++) {
+					buf = layer_order[l][i]->get_points()[j];
+					idx_L = layer_idx[i] + buf.x * layer_size[i] + buf.y;
+					if (!layer[idx_L].observed[l]) {
+						sum = 0;
+						max_dev = 0;
+
+						if (j != 0) {
+							buf1 = layer_order[l][i]->get_points()[j - 1];
+							sum = 0;
+							//layer[i][buf1.x][buf1.y]->p_xs_Y[0][0] = 0;
+							for (k = 0; k < class_amount; ++k) {
+								layer[idx_L].p_xs_Y[l * class_amount + k] = 0;
+								for (t = 0; t < class_amount; ++t)
+									for (r = 0; r < class_amount; ++r)
+										layer[idx_L].p_xs_Y[l * class_amount + k]
+										+= layer[idx_L].p_xs_cs_ds[k* class_amount* class_amount + r * class_amount + t]
+										* layer[layer_idx[i] + buf1.x * layer_size[i] + buf1.y].p_xs_Y[l * class_amount + t]
+										* layer[idx_L].parent->p_xs_Y[l * class_amount + r];
+								sum += layer[idx_L].p_xs_Y[l * class_amount + k];
+							}
+							for (k = 0; k < class_amount; ++k) {
+								layer[idx_L].p_xs_Y[l * class_amount + k] /= sum;
+								layer[idx_L].observed[l] = true;
+								if (abs(layer[idx_L].p_xs_Y[l * class_amount + k] -
+									layer[idx_L].parent->p_xs_Y[l * class_amount + k]) > max_dev)
+									max_dev = abs(layer[idx_L].p_xs_Y[l * class_amount + k] -
+										layer[idx_L].parent->p_xs_Y[l * class_amount + k]);
+
+							}
+						}
+						else {
+
+							for (k = 0; k < class_amount; ++k) {
+								layer[idx_L].p_xs_Y[l * class_amount + k] = 0;
+								for (t = 0; t < class_amount; ++t)
+									layer[idx_L].p_xs_Y[l * class_amount + k] += layer[idx_L].p_xs_cs_ds[k* class_amount* class_amount + t * class_amount + 0]
+									* layer[idx_L].parent->p_xs_Y[l * class_amount + t];
+								sum += layer[idx_L].p_xs_Y[l * class_amount + k];
+							}
+							for (k = 0; k < class_amount; ++k) {
+								layer[idx_L].p_xs_Y[l * class_amount + k] /= sum;
+								layer[idx_L].observed[l] = true;
+								if (abs(layer[idx_L].p_xs_Y[l * class_amount + k] -
+									layer[idx_L].parent->p_xs_Y[l * class_amount + k]) > max_dev)
+									max_dev = abs(layer[idx_L].p_xs_Y[l * class_amount + k] -
+										layer[idx_L].parent->p_xs_Y[l * class_amount + k]);
+
+							}
+						}
+
+						if (max_dev < accuracy) {
+							int counter = 1, len = 1, id_i, id_j;
+							//if(i >( m_layer_amount - m_h_tree + 1))
+							while (i + counter != m_layer_amount) {
+								len *= 2;
+								for (id_i = 0; id_i < len; id_i++) {
+									for (id_j = 0; id_j < len; id_j++) {
+										for (k = 0; k < class_amount; ++k)
+											layer[layer_idx[i + counter] + (buf.x * len + id_i) * layer_size[i + counter] + buf.y * len + id_j].p_xs_Y[l * class_amount + k] =
+											layer[layer_idx[i] + buf.x * layer_size[i] + buf.y].p_xs_Y[l * class_amount + k];
+										layer[layer_idx[i + counter] + (buf.x*len + id_i) * layer_size[i + counter] + buf.y*len + id_j].observed[l] = true;
+									}
+
+								}
+								counter++;
+							}
+							//else
+								//len *= 2;
+						}
+					}
+				}
+
+				/*if (l == 0) {
+					cout << "layer: " << i << endl;
+					for (int p = 0; p < layer_size[i] * layer_size[i]; ++p) {
+						cout << "(" << p / layer_size[i] << "," << p % layer_size[i] << ")" << ": ";
+						for (k = 0; k < class_amount; ++k) {
+
+							cout << layer[layer_idx[i] + p].p_xs_Y[l][k] << " ";
+						}
+						cout << endl;
+					}
+				}*/
+			}
+		}
+		for (l = 1; l < m_layer_ord_amount; ++l) {
+
+			for (j = 0; j < layer_size[i] * layer_size[i]; j++) {
+
+				idx_L = layer_idx[i] + (j / layer_size[i]) * layer_size[i] + j % layer_size[i];
+
+				for (k = 0; k < class_amount; ++k) {
+					layer[idx_L].p_xs_Y[0 * class_amount + k] *= layer[idx_L].p_xs_Y[l * class_amount + k] ;
+				}
+			}
+		}
+		
+		for (j = 0; j < layer_size[i] * layer_size[i]; j++) {
+
+			idx_L = layer_idx[i] + (j / layer_size[i]) * layer_size[i] + j % layer_size[i];
+			double summ = 0;
+			for (k = 0; k < class_amount; ++k) {
+				summ +=layer[idx_L].p_xs_Y[0 * class_amount + k] ;
+			}
+			for (k = 0; k < class_amount; ++k) {
+				layer[idx_L].p_xs_Y[0 * class_amount + k] /= summ;
+			}
+		}
+
+		for (l = 1; l < m_layer_ord_amount; ++l) {
+
+			for (j = 0; j < layer_size[i] * layer_size[i]; j++) {
+
+				idx_L = layer_idx[i] + (j / layer_size[i]) * layer_size[i] + j % layer_size[i];
+
+				for (k = 0; k < class_amount; ++k) {
+					layer[idx_L].p_xs_Y[l * class_amount + k] = layer[idx_L].p_xs_Y[0 * class_amount + k] ;
+				}
+			}
+		}
+	}
+}
+
+//
+
+void quad_tree_handler::up_down_pass_V4() {
+	Point buf, buf1;
+	double sum;
+	double max_dev;
+
+	int l, i, j, k, t, r, idx_L;
+
+
+	for (i = m_layer_amount - m_h_tree; i < m_layer_amount; i++) {
+		for (l = 0; l < m_layer_ord_amount; ++l) {
+			// обработка начального слоя - отличие в том, что у этих пикселей нет родителей
+			if (i == 0) {
+
+				for (j = 0; j < layer_size[i] * layer_size[i]; j++) {
+					buf = layer_order[l][i]->get_points()[j];
+					sum = 0;
+					idx_L = layer_idx[i] + buf.x * layer_size[i] + buf.y;
+
+					if (j != 0) {
+						buf1 = layer_order[l][i]->get_points()[j - 1];
+						sum = 0;
+						//layer[i][buf1.x][buf1.y]->p_xs_Y[0][0] = 0;
+						for (k = 0; k < class_amount; ++k) {
+							layer[idx_L].p_xs_Y[l * class_amount + k] = 0;
+							for (t = 0; t < class_amount; ++t)
+								layer[idx_L].p_xs_Y[l * class_amount + k] += layer[idx_L].p_xs_cs_ds[k* class_amount* class_amount + 0 * class_amount + t]
+								* layer[layer_idx[i] + buf1.x * layer_size[i] + buf1.y].p_xs_Y[l * class_amount + t];
+							sum += layer[idx_L].p_xs_Y[l * class_amount + k];
+
+						}
+						for (k = 0; k < class_amount; ++k) {
+							layer[idx_L].p_xs_Y[l * class_amount + k] /= sum;
+							layer[idx_L].observed[l] = true;
+						}
+					}
+					else {
+
+						for (k = 0; k < class_amount; ++k) {
+							layer[idx_L].p_xs_Y[l * class_amount + k] = 0;
+							for (t = 0; t < class_amount; ++t)
+								layer[idx_L].p_xs_Y[l * class_amount + k]
+									+= layer[idx_L].p_xs_cs_ds[k* class_amount* class_amount + 0 * class_amount + t];
+							
+							sum += layer[idx_L].p_xs_Y[l * class_amount + k];
+						}
+						for (k = 0; k < class_amount; ++k) {
+							layer[idx_L].p_xs_Y[l * class_amount + k] /= sum;
+							layer[idx_L].observed[l] = true;
+						}
+					}
+				}
+			}
+			// обработка промежуточных слоев -  у этих пикселей родители есть, поэтому идет  отличие в формулах
+			else {
+				for (j = 0; j < layer_size[i] * layer_size[i]; j++) {
+					buf = layer_order[l][i]->get_points()[j];
+					idx_L = layer_idx[i] + buf.x * layer_size[i] + buf.y;
+					if (!layer[idx_L].observed[l]) {
+						sum = 0;
+						max_dev = 0;
+
+						if (j != 0) {
+							buf1 = layer_order[l][i]->get_points()[j - 1];
+							sum = 0;
+							//layer[i][buf1.x][buf1.y]->p_xs_Y[0][0] = 0;
+							for (k = 0; k < class_amount; ++k) {
+								layer[idx_L].p_xs_Y[l * class_amount + k] = 0;
+								for (t = 0; t < class_amount; ++t)
+									for (r = 0; r < class_amount; ++r)
+										layer[idx_L].p_xs_Y[l * class_amount + k]
+										+= layer[idx_L].p_xs_cs_ds[k* class_amount* class_amount + r * class_amount + t]
+										* layer[layer_idx[i] + buf1.x * layer_size[i] + buf1.y].p_xs_Y[l * class_amount + t]
+										* layer[idx_L].parent->p_xs_Y[l * class_amount + r];
+						
+								sum += layer[idx_L].p_xs_Y[l * class_amount + k];
+							}
+							for (k = 0; k < class_amount; ++k) {
+								layer[idx_L].p_xs_Y[l * class_amount + k] /= sum;
+
+								layer[idx_L].observed[l] = true;
+								if (abs(layer[idx_L].p_xs_Y[l * class_amount + k] -
+									layer[idx_L].parent->p_xs_Y[l * class_amount + k]) > max_dev)
+									max_dev = abs(layer[idx_L].p_xs_Y[l * class_amount + k] -
+										layer[idx_L].parent->p_xs_Y[l * class_amount + k]);
+
+							}
+						}
+						else {
+
+							for (k = 0; k < class_amount; ++k) {
+								layer[idx_L].p_xs_Y[l * class_amount + k] = 0;
+								for (t = 0; t < class_amount; ++t)
+									layer[idx_L].p_xs_Y[l * class_amount + k] += layer[idx_L].p_xs_cs_ds[k* class_amount* class_amount + t * class_amount + 0]
+									* layer[idx_L].parent->p_xs_Y[l * class_amount + t];
+								sum += layer[idx_L].p_xs_Y[l * class_amount + k];
+							}
+							for (k = 0; k < class_amount; ++k) {
+								layer[idx_L].p_xs_Y[l * class_amount + k] /= sum;
+								layer[idx_L].observed[l] = true;
+								if (abs(layer[idx_L].p_xs_Y[l * class_amount + k] -
+									layer[idx_L].parent->p_xs_Y[l * class_amount + k]) > max_dev)
+									max_dev = abs(layer[idx_L].p_xs_Y[l * class_amount + k] -
+										layer[idx_L].parent->p_xs_Y[l * class_amount + k]);
+
+							}
+						}
+
+						if (max_dev < accuracy) {
+							int counter = 1, len = 1, id_i, id_j;
+							//if(i >( m_layer_amount - m_h_tree + 1))
+							while ((i + counter != m_layer_amount)/* &&(counter <2)*/) {
+								len *= 2;
+								for (id_i = 0; id_i < len; id_i++) {
+									for (id_j = 0; id_j < len; id_j++) {
+										for (k = 0; k < class_amount; ++k)
+											layer[layer_idx[i + counter] + (buf.x * len + id_i) * layer_size[i + counter] + buf.y * len + id_j].p_xs_Y[l * class_amount + k] =
+											layer[layer_idx[i] + buf.x * layer_size[i] + buf.y].p_xs_Y[l * class_amount + k];
+										layer[layer_idx[i + counter] + (buf.x*len + id_i) * layer_size[i + counter] + buf.y*len + id_j].observed[l] = true;
+									}
+
+								}
+								counter++;
+							}  
+							//else
+								//len *= 2;
+						}
+					}
+				}
+
+			}
+		}
+		for (l = 1; l < m_layer_ord_amount; ++l) {
+
+			for (j = 0; j < layer_size[i] * layer_size[i]; j++) {
+
+				idx_L = layer_idx[i] + (j / layer_size[i]) * layer_size[i] + j % layer_size[i];
+
+				for (k = 0; k < class_amount; ++k) {
+					layer[idx_L].p_xs_Y[0 * class_amount + k] *= layer[idx_L].p_xs_Y[l * class_amount + k];
+				}
+				
+
+			}
+		}
+
+		for (j = 0; j < layer_size[i] * layer_size[i]; j++) {
+
+			idx_L = layer_idx[i] + (j / layer_size[i]) * layer_size[i] + j % layer_size[i];
+			double summ = 0;
+			for (k = 0; k < class_amount; ++k) {
+				summ += layer[idx_L].p_xs_Y[0 * class_amount + k];
+			}
+			for (k = 0; k < class_amount; ++k) {
+				layer[idx_L].p_xs_Y[0 * class_amount + k] /= summ;
+			}
+		}
+
+		for (l = 1; l < m_layer_ord_amount; ++l) {
+
+			for (j = 0; j < layer_size[i] * layer_size[i]; j++) {
+
+				idx_L = layer_idx[i] + (j / layer_size[i]) * layer_size[i] + j % layer_size[i];
+
+				for (k = 0; k < class_amount; ++k) {
+					layer[idx_L].p_xs_Y[l * class_amount + k] = layer[idx_L].p_xs_Y[0 * class_amount + k];
+				}
+			}
+		}
+	}
+}
+
+//
+
+void quad_tree_handler::up_down_pass_V5() {
+	Point buf, buf1;
+	double sum;
+	double max_dev;
+
+	int l, i, j, k, t, r, idx_L;
+
+
+	for (i = m_layer_amount - m_h_tree; i < m_layer_amount; i++) {
+		for (l = 0; l < m_layer_ord_amount; ++l) {
+			// обработка начального слоя - отличие в том, что у этих пикселей нет родителей
+			if (i == 0) {
+
+				for (j = 0; j < layer_size[i] * layer_size[i]; j++) {
+					buf = layer_order[l][i]->get_points()[j];
+					sum = 0;
+					idx_L = layer_idx[i] + buf.x * layer_size[i] + buf.y;
+
+					if (j != 0) {
+						buf1 = layer_order[l][i]->get_points()[j - 1];
+						sum = 0;
+						//layer[i][buf1.x][buf1.y]->p_xs_Y[0][0] = 0;
+						for (k = 0; k < class_amount; ++k) {
+							layer[idx_L].p_xs_Y[l * class_amount + k] = 0;
+							for (t = 0; t < class_amount; ++t)
+								layer[idx_L].p_xs_Y[l * class_amount + k] += layer[idx_L].p_xs_cs_ds[k* class_amount* class_amount + 0 * class_amount + t]
+								* layer[layer_idx[i] + buf1.x * layer_size[i] + buf1.y].p_xs_Y[l * class_amount + t];
+							sum += layer[idx_L].p_xs_Y[l * class_amount + k];
+
+						}
+						for (k = 0; k < class_amount; ++k) {
+							layer[idx_L].p_xs_Y[l * class_amount + k] /= sum;
+							layer[idx_L].observed[l] = true;
+						}
+					}
+					else {
+
+						for (k = 0; k < class_amount; ++k) {
+							layer[idx_L].p_xs_Y[l * class_amount + k] = 0;
+							for (t = 0; t < class_amount; ++t)
+								layer[idx_L].p_xs_Y[l * class_amount + k]
+								+= layer[idx_L].p_xs_cs_ds[k* class_amount* class_amount + 0 * class_amount + t];
+
+							sum += layer[idx_L].p_xs_Y[l * class_amount + k];
+						}
+						for (k = 0; k < class_amount; ++k) {
+							layer[idx_L].p_xs_Y[l * class_amount + k] /= sum;
+							layer[idx_L].observed[l] = true;
+						}
+					}
+				}
+			}
+			// обработка промежуточных слоев -  у этих пикселей родители есть, поэтому идет  отличие в формулах
+			else {
+				for (j = 0; j < layer_size[i] * layer_size[i]; j++) {
+					buf = layer_order[l][i]->get_points()[j];
+					idx_L = layer_idx[i] + buf.x * layer_size[i] + buf.y;
+					if (!layer[idx_L].observed[l]) {
+						sum = 0;
+						max_dev = 0;
+
+						if (j != 0) {
+							buf1 = layer_order[l][i]->get_points()[j - 1];
+							sum = 0;
+							//layer[i][buf1.x][buf1.y]->p_xs_Y[0][0] = 0;
+							for (k = 0; k < class_amount; ++k) {
+								layer[idx_L].p_xs_Y[l * class_amount + k] = 0;
+								for (t = 0; t < class_amount; ++t)
+									for (r = 0; r < class_amount; ++r)
+										layer[idx_L].p_xs_Y[l * class_amount + k]
+										+= layer[idx_L].p_xs_cs_ds[k* class_amount* class_amount + r * class_amount + t]
+										* layer[layer_idx[i] + buf1.x * layer_size[i] + buf1.y].p_xs_Y[l * class_amount + t]
+										* layer[idx_L].parent->p_xs_Y[l * class_amount + r];
+								sum += layer[idx_L].p_xs_Y[l * class_amount + k];
+							}
+							for (k = 0; k < class_amount; ++k) {
+								layer[idx_L].p_xs_Y[l * class_amount + k] /= sum;
+								layer[idx_L].observed[l] = true;
+								if (abs(layer[idx_L].p_xs_Y[l * class_amount + k] -
+									layer[idx_L].parent->p_xs_Y[l * class_amount + k]) > max_dev)
+									max_dev = abs(layer[idx_L].p_xs_Y[l * class_amount + k] -
+										layer[idx_L].parent->p_xs_Y[l * class_amount + k]);
+
+							}
+						}
+						else {
+
+							for (k = 0; k < class_amount; ++k) {
+								layer[idx_L].p_xs_Y[l * class_amount + k] = 0;
+								for (t = 0; t < class_amount; ++t)
+									layer[idx_L].p_xs_Y[l * class_amount + k] += layer[idx_L].p_xs_cs_ds[k* class_amount* class_amount + t * class_amount + 0]
+									* layer[idx_L].parent->p_xs_Y[l * class_amount + t];
+								sum += layer[idx_L].p_xs_Y[l * class_amount + k];
+							}
+							for (k = 0; k < class_amount; ++k) {
+								layer[idx_L].p_xs_Y[l * class_amount + k] /= sum;
+								layer[idx_L].observed[l] = true;
+								if (abs(layer[idx_L].p_xs_Y[l * class_amount + k] -
+									layer[idx_L].parent->p_xs_Y[l * class_amount + k]) > max_dev)
+									max_dev = abs(layer[idx_L].p_xs_Y[l * class_amount + k] -
+										layer[idx_L].parent->p_xs_Y[l * class_amount + k]);
+
+							}
+						}
+
+						if (max_dev < accuracy) {
+							int counter = 1, len = 1, id_i, id_j;
+							if (i > (m_layer_amount - m_h_tree + 1))
+							{
+								double max__dev_parent = 0;
+								for (k = 0; k < class_amount; ++k) {
+									
+									if (abs(layer[idx_L].parent->p_xs_Y[l * class_amount + k] -
+										layer[idx_L].parent->parent->p_xs_Y[l * class_amount + k]) > max__dev_parent)
+										max__dev_parent = abs(layer[idx_L].parent->p_xs_Y[l * class_amount + k] -
+											layer[idx_L].parent->parent->p_xs_Y[l * class_amount + k]);
+
+								}
+								if (max__dev_parent < accuracy)
+								{
+									for (k = 0; k < class_amount; ++k) {
+										layer[idx_L].parent->p_xs_Y[l * class_amount + k] = layer[idx_L].parent->parent->p_xs_Y[l * class_amount + k];
+										layer[idx_L].p_xs_Y[l * class_amount + k] = layer[idx_L].parent->parent->p_xs_Y[l * class_amount + k];
+
+									}
+									while ((i + counter != m_layer_amount)) {
+										len *= 2;
+										for (id_i = 0; id_i < len; id_i++) {
+											for (id_j = 0; id_j < len; id_j++) {
+												for (k = 0; k < class_amount; ++k)
+													layer[layer_idx[i + counter] + (buf.x * len + id_i) * layer_size[i + counter] + buf.y * len + id_j].p_xs_Y[l * class_amount + k] =
+													layer[idx_L].p_xs_Y[l * class_amount + k];
+												layer[layer_idx[i + counter] + (buf.x*len + id_i) * layer_size[i + counter] + buf.y*len + id_j].observed[l] = true;
+											}
+
+										}
+										counter++;
+									}
+								}
+							}
+							//else
+								//len *= 2;
+						}
+					}
+				}
+
+				/*if (l == 0) {
+					cout << "layer: " << i << endl;
+					for (int p = 0; p < layer_size[i] * layer_size[i]; ++p) {
+						cout << "(" << p / layer_size[i] << "," << p % layer_size[i] << ")" << ": ";
+						for (k = 0; k < class_amount; ++k) {
+
+							cout << layer[layer_idx[i] + p].p_xs_Y[l][k] << " ";
+						}
+						cout << endl;
+					}
+				}*/
+			}
+		}
+		for (l = 1; l < m_layer_ord_amount; ++l) {
+
+			for (j = 0; j < layer_size[i] * layer_size[i]; j++) {
+
+				idx_L = layer_idx[i] + (j / layer_size[i]) * layer_size[i] + j % layer_size[i];
+
+				for (k = 0; k < class_amount; ++k) {
+					layer[idx_L].p_xs_Y[0 * class_amount + k] *= layer[idx_L].p_xs_Y[l * class_amount + k];
+				}
+			}
+		}
+
+		for (j = 0; j < layer_size[i] * layer_size[i]; j++) {
+
+			idx_L = layer_idx[i] + (j / layer_size[i]) * layer_size[i] + j % layer_size[i];
+			double summ = 0;
+			for (k = 0; k < class_amount; ++k) {
+				summ += layer[idx_L].p_xs_Y[0 * class_amount + k];
+			}
+			for (k = 0; k < class_amount; ++k) {
+				layer[idx_L].p_xs_Y[0 * class_amount + k] /= summ;
+			}
+		}
+
+		for (l = 1; l < m_layer_ord_amount; ++l) {
+
+			for (j = 0; j < layer_size[i] * layer_size[i]; j++) {
+
+				idx_L = layer_idx[i] + (j / layer_size[i]) * layer_size[i] + j % layer_size[i];
+
+				for (k = 0; k < class_amount; ++k) {
+					layer[idx_L].p_xs_Y[l * class_amount + k] = layer[idx_L].p_xs_Y[0 * class_amount + k];
+				}
+			}
+		}
+	}
+}
+
+void quad_tree_handler::write_probs_into_image() {
+	int l, i, j, k, t, r, idx_L;
+	int layer_offset = m_image->get_layer_amount() - m_layer_amount;
+	/*cout << "layer_offset  " << "hhhhhhhhhhhhhhhhhhhhhhhhhhhh" << endl;
+	cout << "layer_offset  " << m_layer_amount - m_h_tree << " " << layer_offset << endl;*/
+	for (i = m_layer_amount - m_h_tree; i < m_layer_amount; i++) {
+		for (l = 0; l < m_layer_ord_amount; ++l) {
+
+			for (j = 0; j < layer_size[i] * layer_size[i]; j++) {
+
+				idx_L = layer_idx[i] + (j / layer_size[i]) * layer_size[i] + j % layer_size[i];
+				for (k = 0; k < class_amount; ++k) {
+					m_init_prob_img[init_layer_idx[layer_offset + i] +
+						(m_l_coner.first*layer_size[i] / 2 + (j / layer_size[i]))* init_layer_size[2 * (layer_offset + i) + 1] * class_amount +
+						(m_l_coner.second*layer_size[i] / 2 + j % layer_size[i])* class_amount + k] =
+							sqrt(m_init_prob_img[init_layer_idx[layer_offset + i] +
+							(m_l_coner.first*layer_size[i] / 2 + (j / layer_size[i]))* init_layer_size[2 * (layer_offset + i) + 1] * class_amount +
+								(m_l_coner.second*layer_size[i] / 2 + j % layer_size[i])* class_amount + k]
+								* layer[idx_L].p_xs_Y[l * class_amount + k]);
+					/*cout << m_init_prob_img[init_layer_idx[layer_offset + i] +
+						(m_l_coner.first*layer_size[i] / 2 + (j / layer_size[i]))* init_layer_size[2 * (layer_offset + i) + 1] * class_amount +
+						(m_l_coner.second*layer_size[i] / 2 + j % layer_size[i])* class_amount + k] << " " << k << " " << j << " " << i << endl;*/
+				}
+			}
+		}
+	}
+}
+
+//
+
+void quad_tree_handler::classyfy_full_img() {
+	int l, i, j, k, t, r, idx_L, weight_idx_max;
+	int layer_offset = m_image->get_layer_amount() - m_layer_amount;
+	weight_idx_max = 0;
+	i = m_layer_amount - 1;
+		for (j = 0; j < m_image->get_image_len().first; j++)
+			for (k = 0; k < m_image->get_image_len().second; k++) {
+				weight_idx_max = 0;
+				double maxBuf = m_init_prob_img[init_layer_idx[layer_offset + i] +
+					(j)* init_layer_size[2 * (layer_offset + i) + 1] * class_amount +
+					(k)* class_amount + 0];
+				for (l = 0; l < class_amount; l++)
+					if (maxBuf < m_init_prob_img[init_layer_idx[layer_offset + i] +
+						( j)* init_layer_size[2 * (layer_offset + i) + 1] * class_amount +
+						( k)* class_amount + l])
+					{
+						weight_idx_max = l;
+						maxBuf = m_init_prob_img[init_layer_idx[layer_offset + i] +
+							(j)* init_layer_size[2 * (layer_offset + i) + 1] * class_amount +
+							( k)* class_amount + l];
+					}
+				//cout << weight_idx_max << endl;
+				m_class_flag[j][k] = weight_idx_max + 1;
+				//cout << m_class_flag[j][k] << j << " " << k << endl;
+			}
+	
+	
+	
+}
+
 
 // непосредственная классификация пикселей по значению максимума соответствующей апостериорной вероятности
 
@@ -790,7 +1514,7 @@ void quad_tree_handler::split_image_by_summ() {
 					idx_max = l;
 				}
 			}
-			m_class_flag[m_l_coner.first*layer_size[m_layer_amount - 1] + i][m_l_coner.second*layer_size[m_layer_amount - 1] + j] = idx_max + 1;
+			m_class_flag[m_l_coner.first*layer_size[m_layer_amount - 1] / 2 + i][m_l_coner.second*layer_size[m_layer_amount - 1] / 2 + j] = idx_max + 1;
 		}
 	}
 }
@@ -804,10 +1528,10 @@ void quad_tree_handler::split_image_by_vote() {
 	unsigned k;
 	int i, j, l;
 
-	for (i = m_l_coner.first*layer_size[m_layer_amount - 1];
-		i < m_l_coner.first*layer_size[m_layer_amount - 1] + layer_size[m_layer_amount - 1]; i++) {
-		for (j = m_l_coner.second*layer_size[m_layer_amount - 1];
-			j < m_l_coner.second*layer_size[m_layer_amount - 1] + layer_size[m_layer_amount - 1]; j++) {
+	for (i = m_l_coner.first*layer_size[m_layer_amount - 1] / wind_offset;
+		i < m_l_coner.first*layer_size[m_layer_amount - 1] / wind_offset + layer_size[m_layer_amount - 1]; i++) {
+		for (j = m_l_coner.second*layer_size[m_layer_amount - 1] / wind_offset;
+			j < m_l_coner.second*layer_size[m_layer_amount - 1] / wind_offset + layer_size[m_layer_amount - 1]; j++) {
 			// зануление 
 			/*for (k = 0; k < layer_ord_amount; ++k) {
 				buf_max[k] = 0;
@@ -819,8 +1543,8 @@ void quad_tree_handler::split_image_by_vote() {
 			for (k = 0; k < m_layer_ord_amount; ++k) {
 
 				buf_max[k] = layer[layer_idx[m_layer_amount - 1]
-					+ (i - m_l_coner.first*layer_size[m_layer_amount - 1]) * layer_size[m_layer_amount - 1]
-					+ j - m_l_coner.second*layer_size[m_layer_amount - 1]].p_xs_Y[k * class_amount + 0];
+					+ (i - m_l_coner.first*layer_size[m_layer_amount - 1] / wind_offset) * layer_size[m_layer_amount - 1]
+					+ j - m_l_coner.second*layer_size[m_layer_amount - 1] / wind_offset].p_xs_Y[k * class_amount + 0];
 
 				idx_max[k] = 0;
 				for (l = 0; l < class_amount; l++) {
@@ -830,11 +1554,11 @@ void quad_tree_handler::split_image_by_vote() {
 
 
 					if (buf_max[k] < layer[layer_idx[m_layer_amount - 1]
-						+ (i - m_l_coner.first*layer_size[m_layer_amount - 1]) * layer_size[m_layer_amount - 1]
-						+ j - m_l_coner.second*layer_size[m_layer_amount - 1]].p_xs_Y[k * class_amount + l]) {
+						+ (i - m_l_coner.first*layer_size[m_layer_amount - 1] / wind_offset) * layer_size[m_layer_amount - 1]
+						+ j - m_l_coner.second*layer_size[m_layer_amount - 1] / wind_offset].p_xs_Y[k * class_amount + l]) {
 						buf_max[k] = layer[layer_idx[m_layer_amount - 1]
-							+ (i - m_l_coner.first*layer_size[m_layer_amount - 1]) * layer_size[m_layer_amount - 1]
-							+ j - m_l_coner.second*layer_size[m_layer_amount - 1]].p_xs_Y[k * class_amount + l];
+							+ (i - m_l_coner.first*layer_size[m_layer_amount - 1] / wind_offset) * layer_size[m_layer_amount - 1]
+							+ j - m_l_coner.second*layer_size[m_layer_amount - 1] / wind_offset].p_xs_Y[k * class_amount + l];
 						idx_max[k] = l;
 					}
 				}
@@ -848,6 +1572,47 @@ void quad_tree_handler::split_image_by_vote() {
 		}
 	}
 }
+
+//
+
+void quad_tree_handler::split_image_by_mul() {
+	unsigned k;
+	int i, j, l, weight_idx_max;
+	double maxBuf;
+	shared_ptr <double[]>pix_cl_probs = shared_ptr <double[]>(new double[class_amount]);
+
+	for (i = m_l_coner.first*layer_size[m_layer_amount - 1] / wind_offset;
+		i < m_l_coner.first*layer_size[m_layer_amount - 1] / wind_offset + layer_size[m_layer_amount - 1]; i++) {
+		for (j = m_l_coner.second*layer_size[m_layer_amount - 1] / wind_offset;
+			j < m_l_coner.second*layer_size[m_layer_amount - 1] / wind_offset + layer_size[m_layer_amount - 1]; j++) {
+
+			for (k = 0; k < class_amount; ++k)
+				pix_cl_probs[k] = 1;
+
+			for (k = 0; k < m_layer_ord_amount; ++k) {
+				for (l = 0; l < class_amount; l++) {
+					
+					pix_cl_probs[l] *= layer[layer_idx[m_layer_amount - 1]
+						+ (i - m_l_coner.first*layer_size[m_layer_amount - 1] / wind_offset) * layer_size[m_layer_amount - 1]
+						+ j - m_l_coner.second*layer_size[m_layer_amount - 1] / wind_offset].p_xs_Y[k * class_amount + l];
+				}
+			}
+			weight_idx_max = 0;
+			maxBuf = pix_cl_probs[0];
+			for (k = 0; k < class_amount; ++k)
+			{
+				
+				if (maxBuf < pix_cl_probs[k])
+				{
+					weight_idx_max = k;
+					maxBuf = pix_cl_probs[k];
+				}
+			}
+			m_class_flag[i][j] = weight_idx_max + 1;
+		}
+	}
+}
+//
 
 void quad_tree_handler::split_image_by_max() {
 

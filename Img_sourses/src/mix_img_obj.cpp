@@ -35,12 +35,12 @@ mix_img_obj::mix_img_obj(string file_name, int img_size, mix_type mix_t, int amo
 
 // конструктор, позвол€ющий обрабатывать реальные –Ћ» ,загружаемые из файла
 
-mix_img_obj::mix_img_obj(string file_name, bool flag) {
+mix_img_obj::mix_img_obj(string file_name, bool flag, int _mode) {
 	ifstream load_params;
 	genFlag = flag;
 	int n_buf, files_amount = 0, mask_amount = 0, stat_mask_amount = 0, input_mix_num = 0;
 	string buf;
-	
+	mode = _mode;
 	cout << "filename " << file_name << endl;
 	load_params.open(file_name);
 	load_params >> files_amount;
@@ -115,18 +115,23 @@ void mix_img_obj::load_from_bitmap() {
 	x_len = image.GetWidth();
 	cout << filename_load_image << endl;
 	cout << "size: " << x_len << " " << y_len << "\n";
-	image_len_x = x_len - x_len % 16;
-	image_len_y = y_len - y_len % 16;
+	if (mode == 0)
+	{
+		image_len_x = x_len - x_len % 16;
+		image_len_y = y_len - y_len % 16;
+	}
+	else
+	{
+		image_len_x = (y_len > x_len) ? x_len : y_len;
+		while (i < image_len_x)
+			i *= 2;
+		i /= 2;
+		image_len_x = i;
+		image_len_y = i;
+	}
 	// делаем изображение длиной 2^n*2^n
-	/*image_len_x = (y_len > x_len) ? x_len : y_len;
-
-	while (i < image_len_x)
-		i *= 2;
-	i /= 2;
-	image_len_x = i;
-	image_len_y = i;*/
+	
 	alloc_layer_mmr();
-
 	if (genFlag)
 	{
 		
@@ -446,13 +451,17 @@ void  mix_img_obj::alloc_layer_mmr(){
 		layer_amount++;
 	}*/
 	cout << "all_img" << endl;
-	layer_amount = 4;
+	if(mode == 0)
+		layer_amount = 4;
+	else
+		layer_amount = 10;
 	layer_size = shared_ptr <int[]>(new int[2 * layer_amount]);
 	layer_idx  = shared_ptr <int[]>(new int[layer_amount]);
 	int summ_size = 0;
 	for (int i = 0; i < layer_amount; ++i) {
-		layer_size[2 * i] = int( image_len_x /pow(2,  3-i) );
-		layer_size[2 * i + 1] = int(image_len_y / pow(2, 3 - i));
+		layer_size[2 * i] = int( image_len_x /pow(2, layer_amount -1 - i) );
+		layer_size[2 * i + 1] = int(image_len_y / pow(2, layer_amount - 1 - i));
+		cout << layer_size[2 * i] << " " << layer_size[2 * i + 1] << endl;
 		layer_idx[i] = summ_size;
 		summ_size += layer_size[2 * i] * layer_size[2 * i + 1];
 	}

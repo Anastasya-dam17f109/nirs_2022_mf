@@ -16,10 +16,16 @@ int main(int argc, char *argv[]) {
 	//"C:\\Users\\anastasya\\Desktop\\data_FR.txt", false);
 	//("C:\\Users\\anastasya\\Desktop\\data_test.txt", false);
 	string fileDescrName = "C:\\Users\\anastasya\\Desktop\\data_Kubinka.txt", fileResName = "D:\\_SAR_Kubinka\\class_results.txt";
-	string fileFaultClassName = "D:\\_SAR_Kubinka\\fault_results.txt", fileClassMarks = "";
+	string fileFaultClassName = "D:\\_SAR_Kubinka\\fault_results.txt", fileClassMarks = "D:/_SAR_Kubinka/class_marks.txt";
 	basic_prob_img *img;
-	int handlerType = 3;
-	vector<string> fileNames;
+	int handlerType = 2;
+	int handler_mode = 2;
+	int img_mode = 1;
+	vector<string> fileNames/* = {"D:/_SAR_Kubinka/class_probs_0.txt",
+"D:/_SAR_Kubinka/class_probs_1.txt",
+"D:/_SAR_Kubinka/class_probs_2.txt",
+"D:/_SAR_Kubinka/class_probs_3.txt" }*/;
+
 	cout << "in programm" << endl;
 	if (argc != 1)
 	{
@@ -28,6 +34,8 @@ int main(int argc, char *argv[]) {
 		int files_amount;
 		string buf;
 		handlerType = atoi(argv[2]);
+		handler_mode = atoi(argv[5]);
+		img_mode = atoi(argv[6]);
 		cout << argv[1] << endl;
 		load_params.open(argv[1]);
 		// считываем названия основных конфигурационных файлов для обработки результатов нейросети
@@ -55,36 +63,42 @@ int main(int argc, char *argv[]) {
 	case 1:
 	{
 		img = new initial_prob_img();
-		img->gen_prob_img_from_config(fileDescrName);
+		img->gen_prob_img_from_config(fileDescrName, img_mode);
 		shared_ptr<basic_prob_img> ptr_img(img);
-		t.mixture_handler(ptr_img->get_m_image(), 5, 0.001);
+		t.mixture_handler(ptr_img->get_m_image(), 5, handler_mode, 0.001);
 	}
 	break;
 	case 2:
 	{
-		img = new initial_prob_img();
-		img->gen_prob_img_from_config(fileDescrName);
+		img = new initial_prob_img();  
+		img->gen_prob_img_from_config(fileDescrName, img_mode);
 		shared_ptr<basic_prob_img> ptr_img(img);
-		t.quadtree_handler(ptr_img, 5, 0.001);
+		t.quadtree_handler(ptr_img, 5, 0.00, 1, handler_mode);
 	}
 	break;
 	case 3:
 	{
+		
 		img = new newtwork_prob_img();
-		img->gen_prob_img_from_config(fileDescrName);
+		
+		img->gen_prob_img_from_config(fileDescrName, img_mode);
+		
 		shared_ptr<basic_prob_img> ptr_img(img);
-		t.network_results_handler(ptr_img->get_m_image(), 5, fileClassMarks);
+		
+		t.network_results_handler(ptr_img->get_m_image(), 5, handler_mode, fileClassMarks);
 	}
 	break;
 	case 4:
 	{
 		
 		img = new newtwork_prob_img();
-		img->gen_prob_img_from_config(fileDescrName);
+		img->gen_prob_img_from_config(fileDescrName, img_mode);
 		cout << "gen " << fileNames.size() << endl;
 		img->load_probs_from_file(fileNames);
 		shared_ptr<basic_prob_img> ptr_img(img);
-		t.quadtree_handler(ptr_img, 5, atof(argv[3]));
+		//t.quadtree_handler(ptr_img, 5, 0.0, 1);
+		cout << "gen2" << endl;
+		t.quadtree_handler(ptr_img, 5, atof(argv[3]), atoi(argv[4]), handler_mode);
 		//t.network_results_handler(ptr_img->get_m_image(), 5, fileClassMarks);
 	}
 	break;

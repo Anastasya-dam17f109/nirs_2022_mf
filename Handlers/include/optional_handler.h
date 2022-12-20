@@ -22,7 +22,7 @@ class optional_handler
 
 	unsigned window_size;
 	unsigned min_trg_size = 17;
-
+	int m_mode;
 	double accuracy = 0.001;
 
 	unsigned hyp_cl_amount = 1;
@@ -41,9 +41,9 @@ class optional_handler
 
 public:
 	optional_handler(){}
-	void mixture_handler(shared_ptr <mix_img_obj> img, unsigned h_classes, double acc);
-	void network_results_handler(shared_ptr <mix_img_obj> img, unsigned h_classes, string classificationData);
-    void quadtree_handler(shared_ptr <basic_prob_img> img, unsigned h_classes, double acc);
+	void mixture_handler(shared_ptr <mix_img_obj> img, unsigned h_classes, int mode, double acc);
+	void network_results_handler(shared_ptr <mix_img_obj> img, unsigned h_classes, int mode, string classificationData);
+    void quadtree_handler(shared_ptr <basic_prob_img> img, unsigned h_classes, double acc,  int type, int mode);
 	//void network_quad_tree_handler(shared_ptr <initial_prob_img> img, unsigned h_classes, double acc);
 	
 	void draw_graphics();
@@ -66,7 +66,7 @@ public:
 	
     void mixture_optimal_redraw_opMP_V2();
 	void kolmogorov_optimal_redraw_opMP();
-    void q_tree_optimal_redraw_opMP();
+    void q_tree_optimal_redraw_opMP(int type, int mode);
 	
 	void BIC();
 

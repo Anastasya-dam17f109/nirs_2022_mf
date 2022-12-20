@@ -33,17 +33,17 @@ public:
     virtual void gen_prob_img_from_obj(shared_ptr<mix_img_obj> image){}
 
 	// построение изображениия через днные,  заложенные в файле конфигурации
-    virtual void gen_prob_img_from_config(string filename){}
+    virtual void gen_prob_img_from_config(string filename, int mode){}
     virtual void load_probs_from_file(vector<string> probs_data){}
 	// выделение памяти под массив вероятностей
     void  alloc_layer_mmr()
     {
         m_init_layer_idx = shared_ptr <int[]>(new int [m_layer_amount]);
         int summ = 0;
-		cout << "m_init_layer_idx[k] "<< endl;
+		
         for (int k = 0; k < m_layer_amount; ++k) {
             m_init_layer_idx[k] = summ;
-			cout << m_init_layer_idx[k] << endl;
+			
             summ += m_layer_size[2*k] * m_layer_size[2*k+1] * m_class_amount;
         }
         m_prob_img = new double [summ];

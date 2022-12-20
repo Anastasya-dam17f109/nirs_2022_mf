@@ -2,6 +2,7 @@
 #include "Zig_zag_curve.h"
 
 
+
 Zig_zag_curve::Zig_zag_curve(int n_ord, int type, bool flag): Basic_curve(n_ord, type, flag){
 }
 
